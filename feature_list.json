@@ -3,7 +3,7 @@
     "version": "1.0",
     "project": "Turtle Investment Framework v1.0",
     "description": "Comprehensive feature list for incremental implementation. Each feature should be implementable and testable in a single Claude Code session. CRITICAL: It is unacceptable to remove or edit tests because this could lead to missing or buggy functionality. Only mark a feature as passes=true after its tests pass.",
-    "total_features": 89,
+    "total_features": 95,
     "categories": [
       "infrastructure",
       "phase0_pdf_download",
@@ -592,7 +592,7 @@
         "Remove P1, P5, P7-P18",
         "Verify: prompt references pdf_sections.json"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 49,
@@ -603,7 +603,7 @@
         "Each section: header, table, unit annotation",
         "Add null-handling for missing sections"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 50,
@@ -614,7 +614,7 @@
         "Include total and percentage of total cash",
         "Verify: matches Phase 3 expected input"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 51,
@@ -625,7 +625,7 @@
         "Include bad debt provision and related party receivables %",
         "Verify: matches Factor 1B module 2 and Factor 3 step 2 input"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 52,
@@ -637,7 +637,7 @@
         "P13: non-recurring items by category",
         "Verify: all match Phase 3 factor reference requirements"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 53,
@@ -649,7 +649,7 @@
         "Update data source: Tushare Pro instead of yfinance",
         "Add: read available_fields.json if more data needed"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 54,
@@ -660,7 +660,7 @@
         "Update degradation path if 3P/4P empty",
         "Verify: factor1 reference updated"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 55,
@@ -671,7 +671,7 @@
         "Both in RMB, no cross-currency issue",
         "Verify: factor2 references correct data_pack sections"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 56,
@@ -682,7 +682,7 @@
         "No longer need PDF extraction for these",
         "Verify: factor3 step 1 updated"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 57,
@@ -693,7 +693,7 @@
         "Cross-validate computed vs pre-computed ratios",
         "Verify: module 0 references section 12"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 58,
@@ -704,7 +704,7 @@
         "Remove references to P1, P5, P7-P18",
         "Verify: no dangling P-item references"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 59,
@@ -715,7 +715,7 @@
         "Each factor appends to {company}_{code}_分析报告.md",
         "Ensure progressive disclosure works: load refs from prompts/references/"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 60,
@@ -726,7 +726,7 @@
         "Update Phase 3 step 1 to parse both formats",
         "Verify: phase3 handles mixed warning formats"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 61,
@@ -1082,6 +1082,85 @@
         "Update phase3_分析与报告.md: §9B data source references",
         "Update factor1_资产质量与商业模式.md: Module 9 data source priority",
         "Add TestSection9BSubsidiaries class to test_phase1b_prompt.py (4 tests)"
+      ],
+      "passes": true
+    },
+    {
+      "id": 90,
+      "category": "phase1a_tushare",
+      "description": "DataFrame storage + §17.1 financial trends (CAGR, debt, net cash, payout)",
+      "steps": [
+        "Add self._store = {} to TushareClient.__init__()",
+        "Store DataFrames in get_* methods (9 methods)",
+        "Add _safe_float, _get_annual_df, _get_annual_series helpers",
+        "Add _compute_financial_trends() for §17.1",
+        "Add compute_derived_metrics() skeleton",
+        "Wire into assemble_data_pack()",
+        "Add tests (20 tests)"
+      ],
+      "passes": true
+    },
+    {
+      "id": 91,
+      "category": "phase1a_tushare",
+      "description": "§17.2 Factor 2 inputs + §17.6 price percentiles + §17.7 SOTP",
+      "steps": [
+        "Add _compute_factor2_inputs() for §17.2 (C/B/D&A/Capex/M/N/O/II/OE)",
+        "Add _compute_factor4_inputs() for §17.6 (percentiles from weekly data)",
+        "Add _compute_sotp_inputs() for §17.7 (parent vs consolidated debt)",
+        "Add tests (17 tests)"
+      ],
+      "passes": true
+    },
+    {
+      "id": 92,
+      "category": "phase1a_tushare",
+      "description": "§17.3-17.5 Factor 3 base case (true cash revenue, W1-W4, base surplus, CV, λ)",
+      "steps": [
+        "Add _compute_factor3_step1() for §17.3 (S/T/U/true cash rev/collection ratio)",
+        "Add _compute_factor3_step4() for §17.4 (W1-W4 operating outflows)",
+        "Add _compute_factor3_sensitivity_base() for §17.5 (base surplus, AA, CV, λ)",
+        "Wire into compute_derived_metrics() in correct order",
+        "Add tests (23 tests)"
+      ],
+      "passes": true
+    },
+    {
+      "id": 93,
+      "category": "phase3_analysis",
+      "description": "Phase 3 prompt updates to reference §17 pre-computed metrics",
+      "steps": [
+        "Phase 3 Step 1: add §17 check instruction",
+        "Factor 2: add §17.2 reference with fallback",
+        "Factor 3: add §17.3/17.4/17.5 references with fallback",
+        "Factor 4: add §17.6 reference with fallback",
+        "Add prompt validation tests (7 tests)"
+      ],
+      "passes": true
+    },
+    {
+      "id": 94,
+      "category": "derived_metrics",
+      "description": "§17.8 EV baseline + 买入就是胜利基准价计算",
+      "steps": [
+        "Fix daily_basic.json total_mv (1750000→17500000)",
+        "Implement _compute_factor4_ev_baseline() with valuation dashboard",
+        "Implement 5-method baseline price calculation with median",
+        "Add premium analysis with verdict bands",
+        "Register in compute_derived_metrics()",
+        "Add 18 tests in TestFactor4EVBaseline"
+      ],
+      "passes": true
+    },
+    {
+      "id": 95,
+      "category": "phase3_analysis",
+      "description": "Factor 4 prompt: 步骤5 绝对估值与基准价 + §17.8 reference",
+      "steps": [
+        "Factor 4: add 步骤5 (Step 5-1 估值指标, Step 5-2 基准价评估)",
+        "Factor 4: update output template with 绝对估值 and 基准价",
+        "Phase 3: add §17.8 reference in Step 6 description",
+        "Add 4 prompt validation tests"
       ],
       "passes": true
     }

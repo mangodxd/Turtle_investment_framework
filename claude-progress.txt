@@ -5,21 +5,24 @@
 ## Project Status
 - Version: v1.0 (upgrading from v0.16_alpha)
 - Architecture: Python scripts (Tushare) + LLM prompts (analysis)
-- Current phase: WAVE 1 + WAVE 2 CORE COMPLETE
-- Features completed: 22/78
-- Last session: 2026-03-06
+- Current phase: WAVE 1-5 + PDF PREPROCESSOR + MDA + SUB + PHASE 3 PROMPTS + §17 DERIVED METRICS + §17.8 EV BASELINE COMPLETE
+- Features completed: 74/95
+- Last session: 2026-03-08
 - Python env: /opt/anaconda3/envs/py10/bin/python (Python 3.10.13)
-- Tests: 83 passing
+- Tests: 451 passing (excl. pdf_preprocessor; ~456 with pdfplumber installed)
 
 ## Implementation Wave Order
 1. Infrastructure (#1-#8) - COMPLETE
 2. Tushare Core (#13-#22) - COMPLETE
 3. Tushare Advanced (#23-#30) - COMPLETE (minus #29 yfinance fallback)
-4. Phase 1B WebSearch (#31-#36) - NOT STARTED
-5. PDF Preprocessor (#37-#47) - NOT STARTED
-6. Phase 2B + Phase 3 (#48-#60) - NOT STARTED
-7. Coordinator + Errors (#61-#70) - NOT STARTED
-8. Integration + Packaging (#71-#78) - NOT STARTED
+4. Data Pack Field Expansion (#79-#86) - COMPLETE
+5. Phase 1B WebSearch (#31-#36) - COMPLETE
+6. PDF Preprocessor (#37-#47) - COMPLETE
+7. Phase 3 Prompts (#53-#60) - COMPLETE
+8. Coordinator + Errors (#61-#70) - NOT STARTED
+9. Integration + Packaging (#71-#78) - NOT STARTED
+10. §17 Derived Metrics (#90-#93) - COMPLETE
+11. §17.8 EV Baseline (#94-#95) - COMPLETE
 
 ## Completed Features
 - #1: Project scaffolding verification ✓
@@ -49,27 +52,73 @@
 - #27: extra-fields mode ✓
 - #28: assemble_data_pack (full assembly) ✓
 - #30: WarningsCollector class ✓
+- #79: Income statement expansion (11 new fields, accounting order) ✓
+- #80: Balance sheet expansion (13 new fields, standard order) ✓
+- #81: Parent balance sheet expansion (3 new fields) ✓
+- #82: Cashflow expansion (5 new fields + c_pay_dist_dpcp_int_exp display) ✓
+- #83: Financial indicators expansion (growth/per-share/quality) ✓
+- #84: Risk-free rate section (yc_cb endpoint) ✓
+- #85: Share repurchase section (repurchase endpoint) ✓
+- #86: Pledge statistics section (pledge_stat endpoint) ✓
+- #37: PDF text extraction (pdfplumber page-by-page) ✓
+- #38: SECTION_KEYWORDS dict (P2/P3/P4/P6/P13) ✓
+- #39: Keyword matching (find_section_pages) ✓
+- #40: Context extraction (page +/- buffer, center-truncate) ✓
+- #41: JSON output (pdf_sections.json) ✓
+- #42: Main pipeline (run_pipeline chaining all steps) ✓
+- #43: Traditional Chinese keyword support ✓
+- #44: PyMuPDF fallback (garbled text detection) ✓
+- #45: Table-aware extraction (markdown tables) ✓
+- #46: Section priority scoring (heading bonus, TOC/xref penalty) ✓
+- #47: End-to-end validation (600887 2024 年报: 5/5 sections) ✓
+- #31: Phase 1B prompt role/scope validation ✓
+- #32: Rf (§14) handled by tushare, not WebSearch ✓
+- #33: §7 management/governance (8 search items, tushare notes) ✓
+- #34: §8 industry/competition (competitor/regulation/cycle queries) ✓
+- #35: §10 MD&A (4 subsections, bilingual queries) ✓
+- #36: §13 warnings (WarningsCollector wired, §13.1/§13.2 split) ✓
+- #87: MDA from PDF (keywords, per-section config, pipeline reorder, §10 PDF-first) ✓
+- #88: SUB section in pdf_preprocessor (subsidiary holdings keywords, buffer=2, 7 new tests) ✓
+- #89: §9B WebSearch subsidiary identification + prompt updates (phase1/2/3/coordinator/factor1) ✓
+- #53: Phase 3 unified units (百万元), Tushare Pro, available_fields.json ✓
+- #54: Factor 1 parent company data: §4P primary, 合并口径 degradation ✓
+- #55: Factor 2 payout ratio from §6 + §3 (not P11) ✓
+- #56: Factor 3 contract liability source annotation §4 ✓
+- #57: Factor 1B module 0(2) cross-validate with §12 pre-computed ratios ✓
+- #58: All stale P-item references removed (P1→§4P, P5→§5, P8→P6, P9→§10, P11→§6+§3) ✓
+- #59: Checkpoint output path: output/{code}_分析报告.md ✓
+- #60: Warnings §13.1 (auto-detect, typed) vs §13.2 (agent, free-form) ✓
+- #90: §17.1 DataFrame storage + financial trends (CAGR, debt, net cash, payout) ✓
+- #91: §17.2 Factor 2 inputs + §17.6 price percentiles + §17.7 SOTP ✓
+- #92: §17.3-17.5 Factor 3 base case (true cash revenue, W1-W4, base surplus, CV, λ) ✓
+- #93: Phase 3 prompt updates to reference §17 pre-computed metrics ✓
+- #94: §17.8 EV baseline + "买入就是胜利"基准价 (valuation dashboard, 5-method floor price, premium analysis) ✓
+- #95: Factor 4 prompt Step 5 + §17.8 reference + output template update ✓
 
 ## Current Blockers
 - [ ] TUSHARE_TOKEN needed for live integration tests (#74)
-- [ ] No test PDF for pdf_preprocessor testing (#37+)
 
 ## Next Priority
-- Feature #29: yfinance fallback (try/except already in assembly, just needs yfinance import)
-- Features #31-#36: Phase 1B WebSearch prompt updates
-- Features #37-#47: PDF preprocessor implementation
+- Feature #29: yfinance fallback
+- Features #48-#52: Phase 2B (prompt-based PDF extraction)
+- Features #61-#70: Coordinator + Errors
 
 ## Test Summary
 - tests/test_config.py: 26 tests (token, stock codes, PDF utils)
 - tests/test_format_utils.py: 21 tests (format_number, format_table, format_header)
-- tests/test_tushare_client.py: 36 tests (client, data sections, warnings)
-- Total: 83 tests, all passing
+- tests/test_tushare_client.py: 74 tests (client, data sections, warnings, expanded fields, assembly warnings)
+- tests/test_phase1b_prompt.py: 21 tests (prompt role, scope, §7/§8/§9B/§10/§13 validation, PDF-first)
+- tests/test_pdf_preprocessor.py: 72 tests (keywords, extraction, scoring, pipeline, tables, MDA, SUB)
+- tests/test_phase3_prompt.py: 112 tests (prompt validation + optimization A/B/C + §17 references + §17.8)
+- tests/test_derived_metrics.py: 78 tests (§17.1-17.8 derived metrics computation)
+- Total: 451 tests passing (excl. pdf_preprocessor; ~456 with pdfplumber installed)
 
 ## Key Files
 - scripts/config.py: get_token, validate_stock_code, check_local_pdf, validate_pdf
 - scripts/format_utils.py: format_number, format_table, format_header
-- scripts/tushare_collector.py: TushareClient (12 get_* methods), WarningsCollector, CLI
-- tests/fixtures/mock_tushare_responses/: 10 JSON fixtures
+- scripts/tushare_collector.py: TushareClient (15 get_* methods + compute_derived_metrics), WarningsCollector, CLI
+- scripts/pdf_preprocessor.py: extract_all_pages, find_section_pages, extract_section_context, run_pipeline
+- tests/fixtures/mock_tushare_responses/: 13 JSON fixtures
 
 ## Session Log
 ### Session 1 - 2026-03-06
@@ -84,3 +133,148 @@
 - Implemented Wave 3 advanced (features #23-#28, #30)
 - Created 83 tests across 3 test files, all passing
 - tushare_collector.py now has full data collection pipeline with assembly
+
+### Session 3 - 2026-03-06
+- Implemented features #79-#86: data_pack_market field expansion
+- Income: +11 fields (finance_exp, income_tax, total_profit, invest_income, etc.), accounting order
+- Balance sheet: +13 fields (trad_asset, intang_assets, cip, acct_payable, defer_tax, etc.)
+- Parent BS: +3 fields (bond_payable, non_cur_liab_due_1y, total_hldr_eqy_exc_min_int)
+- Cashflow: +5 fields (c_pay_to_staff, c_paid_for_taxes, etc.) + display c_pay_dist_dpcp_int_exp
+- Fina indicators: +5 fields (revenue_yoy, netprofit_yoy, ocfps, bps, profit_dedt)
+- New sections: §14 Risk-free rate, §15 Share repurchase, §16 Pledge statistics
+- Added 19 new tests (96→115), all passing
+- Updated feature_list.json (78→86 features), 3 new fixture files
+
+### Session 4 - 2026-03-06
+- Implemented features #37-#47: PDF preprocessor pipeline (Phase 2A)
+- extract_all_pages: pdfplumber extraction with PyMuPDF fallback for garbled text
+- SECTION_KEYWORDS: 5 sections (P2/P3/P4/P6/P13) with simplified + traditional Chinese
+- find_section_pages: keyword scanning with priority scoring (heading bonus, TOC/xref penalty)
+- extract_section_context: center-truncate around keyword match, page ±1 buffer
+- Table-aware extraction: pdfplumber tables → markdown format
+- JSON output: pdf_sections.json with metadata and 5 section texts
+- End-to-end validated on 600887 2024 年报 (270 pages): 5/5 sections found
+- Added 55 new tests (116→171), all passing
+
+### Session 5 - 2026-03-06
+- Implemented features #31-#36: Phase 1B WebSearch prompt updates
+- Wired WarningsCollector into assemble_data_pack() (§13 now has §13.1 auto-detect + §13.2 agent placeholder)
+- Fixed prompt 附録A → §13.1 reference in phase1_数据採集.md
+- Updated coordinator.md: removed 附録A references (now §13.1)
+- Created tests/test_phase1b_prompt.py: 15 prompt validation tests
+- Added TestAssembleDataPackWarnings to test_tushare_client.py: 6 assembly warning tests
+- Total: 139 tests passing (excl. pdf_preprocessor requiring pdfplumber)
+
+### Session 6 - 2026-03-06
+- Implemented feature #87: MDA extraction from PDF with pipeline reorder
+- Added MDA to SECTION_KEYWORDS (9 keywords: simplified + traditional Chinese)
+- Added SECTION_EXTRACT_CONFIG for per-section buffer_pages/max_chars (MDA: 3/8000)
+- Updated extract_section_context() to use per-section config
+- Updated write_output() to include MDA (6 sections total)
+- Updated phase1_数据采集.md §10: PDF-first + WebSearch fallback
+- Updated coordinator.md: Phase 1A + Phase 2A run in parallel, before Phase 1B
+- Added 10 new tests (194→204), all passing
+
+### Session 7 - 2026-03-06
+- Implemented features #88-#89: SUB extraction + §9B subsidiary identification
+- #88: Added SUB section to pdf_preprocessor.py (13 keywords, buffer=2, max_chars=6000)
+- #88: Updated existing tests for 7 sections, added 7 new TestSUBExtraction tests
+- #89: Added §9B WebSearch task to phase1_数据采集.md (trigger: holding companies)
+- #89: Added SUB conditional extraction template to phase2_PDF解析.md
+- #89: Updated coordinator.md, phase3, factor1 with SUB/§9B references
+- #89: Module 9 data source priority: §9B > SUB > §4P fallback
+- #89: Added 4 new TestSection9BSubsidiaries tests
+- Total: 217 tests passing (with pdfplumber)
+
+### Session 8 - 2026-03-07
+- Implemented features #53-#60: Phase 3 prompt updates (data source migration)
+- #53: Phase 3 payout source → §6 + §3 (not P11), added available_fields.json mention
+- #54: Factor 1 module 9 parent data → §4P, degradation → 合并口径 (not P1)
+- #55: Factor 2 payout ratio → §6 + §3 (step 5 and step 8)
+- #56: Factor 3 step 1 contract liability source annotation → §4
+- #57: Factor 1 module 0(2) cross-validate computed ratios with §12 pre-computed
+- #58: Removed all stale P-item references (P1/P5/P8/P9/P11) across all factor files
+- #59: Checkpoint output path: output/{code}_分析报告.md
+- #60: §13 Warnings distinction: §13.1 auto-detect typed + §13.2 agent free-form
+- Created tests/test_phase3_prompt.py: 61 tests (prompt content validation)
+- Total: 225 tests passing (excl. pdf_preprocessor; 293 with pdfplumber)
+
+### Session 9 - 2026-03-07
+- Analysis pipeline optimization: 3 optimizations (A/B/C)
+- Optimization A: Module 0 simplified from ~120 lines to ~30 lines
+  - Removed data copying sections (1)(2)(3)(5)(6)(7)(8)
+  - Kept 3 items: anomaly scan, profit calibration, cash calibration
+  - Updated all 模块〇(8) references across factor1/2/3/4 → direct data_pack reads
+  - Factor 1B output template: quantitative params replaced with calibration references
+- Optimization B: Factor 2 streamlined from 8 steps to 4 steps
+  - Merged steps 1-2 → new step 1 (param read + OE)
+  - Merged steps 3-4 → new step 2 (veto gate)
+  - Moved step 5 (分配意愿) → Factor 3 step 10a
+  - Moved step 6 (可预测性) → Factor 3 step 11
+  - Merged steps 7-8 → new step 3 (R% calculation)
+  - Added step 4 (veto gate judgment)
+  - Updated Factor 4 value trap check: 因子2分配意愿 → 因子3分配意愿
+- Optimization C: Phase 1B early start
+  - coordinator.md: Phase 1B starts after Phase 1A (not waiting for Phase 2A)
+  - §7/§8/§9B don't depend on pdf_sections.json
+  - §10 checks pdf_sections.json at execution time
+- Added 40 new tests (61→101 in test_phase3_prompt.py)
+- Total: 265 tests passing (358 with pdfplumber)
+
+### Session 10 - 2026-03-07
+- Fixed 3 issues based on updated prompt flow:
+- Issue 1: Added interim data / TTM annualization rules
+  - phase3_分析与报告.md: Step 1.5 中期数据处理规则 (Q3×4/3, H1×2, BS不年化)
+  - phase3_分析与报告.md: §1.5 报告模板增加 FY0(Ann.) 列
+  - factor2_穿透回报率粗算.md: 步骤1 追加中期年化参考 (C_ann, OE_ann, R_ann)
+  - factor1_资产质量与商业模式.md: 模块〇追加中期数据标注
+- Issue 2: Fixed WebSearch placeholder replacement mechanism
+  - tushare_collector.py: 占位符从 `*[待Agent WebSearch补充]*` 改为 `*[§N 待Agent WebSearch补充]*`
+  - phase1_数据采集.md: "追加写入" 改为明确的占位符替换指令 + 新增第7条验证
+  - coordinator.md: Phase 1B prompt 追加占位符替换说明
+  - test_tushare_client.py: 更新占位符测试
+- Issue 3: Fixed PDF preprocessor SUB keyword matching
+  - pdf_preprocessor.py: 移除歧义关键词 "长期股权投资"，新增特异性变体
+  - pdf_preprocessor.py: _score_match() 新增 SUB 上下文评分 (会计惩罚/子公司奖励)
+  - pdf_preprocessor.py: 新增 --hints 参数和 _load_hints() 函数
+  - pdf_preprocessor.py: run_pipeline() 支持 TOC hints 覆盖关键词匹配
+  - coordinator.md: 新增 Phase 2A.5 TOC 定位步骤
+  - test_pdf_preprocessor.py: 5 个新测试 + 2 个修复
+- Total: 271 tests passing (excl. pdf_preprocessor; ~276 with pdfplumber)
+
+### Session 11 - 2026-03-07
+- Implemented features #90-#93: §17 derived metrics pre-computation
+- #90: DataFrame storage (_store dict) + §17.1 financial trends
+  - self._store = {} in __init__, self._store[key] = df in 9 get_* methods
+  - _safe_float, _get_annual_df, _get_annual_series helpers
+  - _compute_financial_trends(): CAGR, interest-bearing debt, debt ratio, net cash, payout
+  - compute_derived_metrics() skeleton, wired into assemble_data_pack()
+- #91: §17.2 Factor 2 inputs + §17.6 price percentiles + §17.7 SOTP
+  - _compute_factor2_inputs(): C/B/minority/D&A/Capex/F/M/N/O/II/OE_base
+  - _compute_factor4_inputs(): 10yr percentiles from weekly data
+  - _compute_sotp_inputs(): parent vs consolidated debt comparison
+- #92: §17.3-17.5 Factor 3 base case computations
+  - _compute_factor3_step1(): true cash revenue (S/T/U/conservative base/collection ratio)
+  - _compute_factor3_step4(): operating outflows (W1 supplier/W2 employee/W3 cash tax/W4 interest)
+  - _compute_factor3_sensitivity_base(): base surplus, AA_incl/AA_excl, CV, λ, λ reliability
+- #93: Phase 3 prompt updates to reference §17 pre-computed metrics
+  - phase3_分析与报告.md: Step 1 §17 check instruction
+  - factor2/factor3/factor4 reference files: §17.2/17.3/17.4/17.5/17.6 references with fallback
+  - 7 prompt validation tests
+- Total: 429 tests passing (excl. pdf_preprocessor; ~434 with pdfplumber)
+
+### Session 12 - 2026-03-08
+- Implemented features #94-#95: §17.8 绝对估值仪表盘 + "买入就是胜利"基准价
+- #94: _compute_factor4_ev_baseline() in tushare_collector.py
+  - Part A: 11 valuation indicators (EV, EBITDA, EV/EBITDA, cash-adj PE, FCF yield, P/B, etc.)
+  - Part B: 5-method baseline price (net liquid assets, BVPS, 10yr low, dividend implied, pessimistic FCF)
+  - Part C: Composite baseline (median of valid methods)
+  - Part D: Premium analysis with 5 verdict bands
+  - Fixed daily_basic.json total_mv (1750000→17500000)
+  - Added 18 tests in TestFactor4EVBaseline
+- #95: Factor 4 prompt updates
+  - Added 步骤5 (Step 5-1 估值指标, Step 5-2 基准价与溢价评估)
+  - Updated 因子4输出 template with 绝对估值 + 基准价 sections
+  - Phase 3 Step 6: added §17.8 reference
+  - Added 4 prompt validation tests
+- Total: 451 tests passing (excl. pdf_preprocessor; ~456 with pdfplumber)
