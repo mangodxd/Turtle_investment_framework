@@ -50,6 +50,27 @@ data_pack_market.md 路径：{由协调器提供}
 >
 > Agent 应**补充定性信息**（变更原因、具体情况、最新动态），不需要重新采集已有数值。
 
+> **港股特别说明（当股票代码以 .HK 结尾时适用）**：
+> 港股的 tushare 数据覆盖有限，以下章节需要 Agent 通过 WebSearch **完整采集**：
+> - **审计意见**：搜索 "{公司名} annual report auditor opinion" / "{公司名} 核数师报告"
+>   记录：审计师名称、审计意见类型、5年内是否更换审计师
+> - **§9 主营业务构成**：搜索 "{公司名} segment revenue breakdown" / "{公司名} 分部收入"
+>   记录：各业务分部的收入、利润、毛利率
+> - **§15 股票回购**：搜索 "{公司名} share buyback repurchase" / "{公司名} 股份回购"
+>   记录：回购金额、股数、用途
+> - **§16 股权质押**：不适用，港股无A股式质押制度，无需搜索
+> - **§7 股东与治理**：tushare_collector.py 已通过 yfinance 获取机构持股，
+>   Agent 仍需补充控股股东、管理层变更、违规记录等定性信息
+>
+> **港股财务数据验证（当 data_pack_market.md §3-§5 仍有 "—" 标记时）**：
+> 港股的 Tushare + yfinance 联合采集仍可能遗漏部分财务字段。如关键字段仍显示 "—"，Agent 应通过 WebSearch 补充：
+> - **折旧及摊销**：搜索 "{公司名} annual report depreciation amortization"
+> - **资本开支**：搜索 "{公司名} capital expenditure capex"
+> - **经营溢利**：搜索 "{公司名} operating profit"
+> - **应收帐款 / 存货**：搜索 "{公司名} balance sheet receivables inventory"
+>
+> 在 §13 Warnings 中记录通过 WebSearch 补充的字段，标注 `[数据补充|中]`。
+
 输出格式：
 ```markdown
 ## 7. 管理层与治理

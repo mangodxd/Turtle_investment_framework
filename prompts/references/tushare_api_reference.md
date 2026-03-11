@@ -973,4 +973,468 @@ operate_profit, total_profit, income_tax, rd_exp, assets_impair_loss
 
 ---
 
+---
+
+## 7. 港股列表 (`hk_basic`)
+
+- **接口**: `hk_basic`
+- **描述**: 获取港股列表信息
+- **权限**: 用户需要至少 **2000积分** 才可以调取
+- **提示**: 单次请求即可获取全部可交易的港股列表数据
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| ts_code | str | N | TS股票代码, e.g. 00001.HK |
+| list_status | str | N | 上市状态: L-上市(默认) D-退市 P-暂停上市 |
+
+### 输出参数
+
+| 名称 | 类型 | 默认显示 | 描述 |
+|------|------|----------|------|
+| ts_code | str | Y | TS代码, e.g. 00001.HK |
+| name | str | Y | 股票名称 |
+| fullname | str | Y | 公司全称 |
+| enname | str | Y | 英文名称 |
+| cn_spell | str | Y | 拼音 |
+| market | str | Y | 市场类别（主板等） |
+| list_status | str | Y | 上市状态 |
+| list_date | str | Y | 上市日期 |
+| delist_date | str | Y | 退市日期 |
+| trade_unit | float | Y | 交易单位（每手股数） |
+| isin | str | Y | ISIN代码 |
+| curr_type | str | Y | 货币类型 (HKD) |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+# 获取全部可交易港股基础信息
+df = pro.hk_basic()
+
+# 获取单只股票信息
+df = pro.hk_basic(ts_code='00700.HK',
+                  fields='ts_code,name,fullname,market,list_date,enname')
+```
+
+---
+
+## 8. 港股行情 (`hk_daily`)
+
+- **接口**: `hk_daily`
+- **描述**: 获取港股每日增量和历史行情，每日18点左右更新当日数据
+- **权限**: 需单独开通权限
+- **限量**: 单次最大5000条，可多次请求获取更多数据
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| ts_code | str | N | 股票代码, e.g. 00001.HK |
+| trade_date | str | N | 交易日期 (YYYYMMDD) |
+| start_date | str | N | 开始日期 (YYYYMMDD) |
+| end_date | str | N | 结束日期 (YYYYMMDD) |
+
+### 输出参数
+
+| 名称 | 类型 | 默认显示 | 描述 |
+|------|------|----------|------|
+| ts_code | str | Y | 股票代码 |
+| trade_date | str | Y | 交易日期 |
+| open | float | Y | 开盘价 |
+| high | float | Y | 最高价 |
+| low | float | Y | 最低价 |
+| close | float | Y | 收盘价 |
+| pre_close | float | Y | 昨收价 |
+| change | float | Y | 涨跌额 |
+| pct_chg | float | Y | 涨跌幅 (%) |
+| vol | float | Y | 成交量 (股) |
+| amount | float | Y | 成交额 (元) |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+# 获取单只股票行情
+df = pro.hk_daily(ts_code='00001.HK',
+                  start_date='20190101', end_date='20190904')
+
+# 获取某日全部港股行情
+df = pro.hk_daily(trade_date='20190904')
+```
+
+---
+
+## 9. 港股交易日历 (`hk_tradecal`)
+
+- **接口**: `hk_tradecal`
+- **描述**: 获取港股交易日历
+- **权限**: 用户需要至少 **2000积分** 才可以调取
+- **限量**: 单次最大2000条
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| start_date | str | N | 开始日期 (YYYYMMDD) |
+| end_date | str | N | 结束日期 (YYYYMMDD) |
+| is_open | str | N | 是否交易: 0-休市 1-交易 |
+
+### 输出参数
+
+| 名称 | 类型 | 默认显示 | 描述 |
+|------|------|----------|------|
+| cal_date | str | Y | 日历日期 |
+| is_open | int | Y | 是否交易: 0-休市 1-交易 |
+| pretrade_date | str | Y | 上一交易日 |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+df = pro.hk_tradecal(start_date='20200101', end_date='20200708')
+```
+
+---
+
+## 10. 港股利润表 (`hk_income`)
+
+- **接口**: `hk_income`
+- **描述**: 获取港股上市公司财务利润表数据
+- **权限**: 需单独开通权限或 **15000积分**
+- **限量**: 单次最大10000条
+- **重要**: 数据采用 **行转列 (pivoted) 格式**，每行一个财务指标 (`ind_name` + `ind_value`)，而非传统的一行一期
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| ts_code | str | Y | 股票代码, e.g. 00700.HK |
+| period | str | N | 报告期 (YYYYMMDD, e.g. 20241231) |
+| ind_name | str | N | 指标名称 (e.g. 营业额) — 用于筛选单个指标跨期数据 |
+| start_date | str | N | 报告期开始日期 |
+| end_date | str | N | 报告期结束日期 |
+
+### 输出参数
+
+| 名称 | 类型 | 默认显示 | 描述 |
+|------|------|----------|------|
+| ts_code | str | Y | 股票代码 |
+| end_date | str | Y | 报告期 |
+| name | str | Y | 股票名称 |
+| ind_name | str | Y | 财务指标名称 |
+| ind_value | float | Y | 财务指标值 |
+
+### ind_name 常见取值
+
+| ind_name | 含义 |
+|----------|------|
+| 营业额 | Revenue |
+| 营运支出 | Operating expenses |
+| 销售及分销费用 | Selling and distribution expenses |
+| 行政开支 | Administrative expenses |
+| 经营溢利 | Operating profit |
+| 利息收入 | Interest income |
+| 融资成本 | Finance costs |
+| 应占联营公司溢利 | Share of associates' profit |
+| 除税前溢利 | Profit before tax |
+| 税项 | Tax |
+| 除税后溢利 | Profit after tax |
+| 少数股东损益 | Minority interests |
+| 股东应占溢利 | Profit attributable to shareholders |
+| 每股基本盈利 | Basic EPS |
+| 每股摊薄盈利 | Diluted EPS |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+# 获取腾讯 2024 年度利润表 (返回多行, 每行一个指标)
+df = pro.hk_income(ts_code='00700.HK', period='20241231')
+
+# 获取腾讯历史营业额数据 (返回多期同一指标)
+df = pro.hk_income(ts_code='00700.HK', ind_name='营业额')
+```
+
+### 本项目使用的字段
+
+`tushare_collector.py` 中 `HK_INCOME_MAP` 定义了 ind_name 到内部字段名的映射关系。
+
+**注意**: 与 A 股不同，HK 利润表将指标名放在 `ind_name` 列中，需 pivot 后使用。值的单位为 HKD 元，使用时需除以 1e6 转为百万。
+
+---
+
+## 11. 港股资产负债表 (`hk_balancesheet`)
+
+- **接口**: `hk_balancesheet`
+- **描述**: 获取港股上市公司资产负债表数据
+- **权限**: 需单独开通权限或 **15000积分**
+- **限量**: 单次最大10000条
+- **重要**: 数据采用 **行转列 (pivoted) 格式**，每行一个财务指标 (`ind_name` + `ind_value`)
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| ts_code | str | Y | 股票代码, e.g. 00700.HK |
+| period | str | N | 报告期 (YYYYMMDD) |
+| ind_name | str | N | 指标名称 (e.g. 应收帐款) |
+| start_date | str | N | 报告期开始日期 |
+| end_date | str | N | 报告期结束日期 |
+
+### 输出参数
+
+| 名称 | 类型 | 默认显示 | 描述 |
+|------|------|----------|------|
+| ts_code | str | Y | 股票代码 |
+| name | str | Y | 股票名称 |
+| end_date | str | Y | 报告期 |
+| ind_name | str | Y | 财务指标名称 |
+| ind_value | float | Y | 财务指标值 |
+
+### ind_name 常见取值
+
+**资产类**:
+
+| ind_name | 含义 |
+|----------|------|
+| 现金及等价物 | Cash and equivalents |
+| 应收帐款 | Accounts receivable |
+| 存货 | Inventories |
+| 流动资产合计 | Total current assets |
+| 物业厂房及设备 | Property, plant and equipment |
+| 无形资产 | Intangible assets |
+| 在建工程 | Construction in progress |
+| 联营公司权益 | Interest in associates |
+| 递延税项资产 | Deferred tax assets |
+| 总资产 | Total assets |
+
+**负债类**:
+
+| ind_name | 含义 |
+|----------|------|
+| 应付帐款 | Accounts payable |
+| 应付票据 | Notes payable |
+| 短期贷款 | Short-term borrowings |
+| 递延收入(流动) | Deferred income (current) |
+| 流动负债合计 | Total current liabilities |
+| 长期贷款 | Long-term borrowings |
+| 递延税项负债 | Deferred tax liabilities |
+| 应付票据(非流动) | Notes payable (non-current) |
+| 总负债 | Total liabilities |
+
+**权益类**:
+
+| ind_name | 含义 |
+|----------|------|
+| 股东权益 | Shareholders' equity |
+| 少数股东权益 | Minority interests |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+# 获取腾讯 2024 年度资产负债表
+df = pro.hk_balancesheet(ts_code='00700.HK', period='20241231')
+```
+
+### 本项目使用的字段
+
+`tushare_collector.py` 中 `HK_BALANCE_MAP` 定义了 ind_name 到内部字段名的映射关系。
+
+---
+
+## 12. 港股现金流量表 (`hk_cashflow`)
+
+- **接口**: `hk_cashflow`
+- **描述**: 获取港股上市公司现金流量表数据
+- **权限**: 需单独开通权限或 **15000积分**
+- **限量**: 单次最大10000条
+- **重要**: 数据采用 **行转列 (pivoted) 格式**，每行一个财务指标 (`ind_name` + `ind_value`)
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| ts_code | str | Y | 股票代码, e.g. 00700.HK |
+| period | str | N | 报告期 (YYYYMMDD) |
+| ind_name | str | N | 指标名称 (e.g. 新增借款) |
+| start_date | str | N | 报告期开始日期 |
+| end_date | str | N | 报告期结束日期 |
+
+### 输出参数
+
+| 名称 | 类型 | 默认显示 | 描述 |
+|------|------|----------|------|
+| ts_code | str | Y | 股票代码 |
+| end_date | str | Y | 报告期 |
+| name | str | Y | 股票名称 |
+| ind_name | str | Y | 财务指标名称 |
+| ind_value | float | Y | 财务指标值 |
+
+### ind_name 常见取值
+
+**经营活动**:
+
+| ind_name | 含义 |
+|----------|------|
+| 经营业务现金净额 | Net cash from operating activities |
+| 已付税项 | Tax paid |
+| 折旧及摊销 | Depreciation and amortization |
+
+**投资活动**:
+
+| ind_name | 含义 |
+|----------|------|
+| 购建无形资产及其他资产 | Purchase of intangible/other assets (CapEx) |
+| 收回投资所得现金 | Cash received from disposal of investments |
+| 投资业务现金净额 | Net cash from investing activities |
+
+**融资活动**:
+
+| ind_name | 含义 |
+|----------|------|
+| 已付股息(融资) | Dividends paid (financing) |
+| 回购股份 | Share buyback |
+| 融资业务现金净额 | Net cash from financing activities |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+# 获取腾讯 2024 年度现金流量表
+df = pro.hk_cashflow(ts_code='00700.HK', period='20241231')
+```
+
+### 本项目使用的字段
+
+`tushare_collector.py` 中 `HK_CASHFLOW_MAP` 定义了 ind_name 到内部字段名的映射关系。
+
+---
+
+## 13. 港股财务指标 (`hk_fina_indicator`)
+
+- **接口**: `hk_fina_indicator`
+- **描述**: 获取港股上市公司财务指标数据，每次请求最多返回200条记录
+- **权限**: 需单独开通权限或 **15000积分**
+- **限量**: 单次最大200条
+- **重要**: 此接口为 **结构化字段** 格式（与 A 股 `fina_indicator` 类似），不使用 `ind_name/ind_value` 的行转列格式
+
+### 输入参数
+
+| 名称 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| ts_code | str | Y | 股票代码, e.g. 00700.HK |
+| period | str | N | 报告期 (YYYYMMDD) |
+| report_type | str | N | 报告类型: Q1, Q2, Q3, Q4 |
+| start_date | str | N | 报告开始日期 |
+| end_date | str | N | 报告结束日期 |
+
+### 输出参数
+
+#### 每股指标
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| basic_eps | float | 基本每股收益 (元) |
+| diluted_eps | float | 稀释每股收益 (元) |
+| eps_ttm | float | 滚动每股收益 (元) |
+| bps | float | 每股净资产 (元) |
+| dps_hkd | float | 每股股息 (HKD) |
+
+#### 盈利能力
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| roe_avg | float | 平均净资产收益率 (%) |
+| roa | float | 总资产报酬率 (%) |
+| gross_profit_ratio | float | 毛利率 (%) |
+| net_profit_ratio | float | 净利率 (%) |
+
+#### 增长率
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| operate_income_yoy | float | 营收同比增长率 (%) |
+| holder_profit_yoy | float | 归属股东净利润同比增长率 (%) |
+
+#### 资产负债
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| debt_asset_ratio | float | 资产负债率 (%) |
+| current_ratio | float | 流动比率 (倍) |
+
+#### 估值与分红
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| pe_ttm | float | 滚动市盈率 |
+| pb_ttm | float | 滚动市净率 |
+| total_market_cap | float | 总市值 |
+| hksk_market_cap | float | 港股通市值 |
+| divi_ratio | float | 分红率 (%) |
+| dividend_rate | float | 股息率 (%) |
+
+### 接口用法
+
+```python
+pro = ts.pro_api()
+
+# 获取腾讯 2024 年度财务指标
+df = pro.hk_fina_indicator(ts_code='00700.HK', period='20241231')
+
+# 指定返回字段
+df = pro.hk_fina_indicator(ts_code='00700.HK',
+                            fields='ts_code,end_date,roe_avg,gross_profit_ratio,'
+                                   'net_profit_ratio,debt_asset_ratio,'
+                                   'pe_ttm,pb_ttm,operate_income_yoy,holder_profit_yoy,'
+                                   'bps,total_market_cap,hksk_market_cap')
+```
+
+### 本项目使用的字段
+
+`_get_basic_info_hk()` 请求:
+```
+ts_code,end_date,pe_ttm,pb_ttm,total_market_cap,hksk_market_cap
+```
+
+`_get_fina_indicators_hk()` 请求:
+```
+ts_code,end_date,roe_avg,gross_profit_ratio,net_profit_ratio,debt_asset_ratio,
+pe_ttm,pb_ttm,operate_income_yoy,holder_profit_yoy,bps,total_market_cap,hksk_market_cap
+```
+
+`_get_dividends_hk()` 请求:
+```
+ts_code,end_date,dps_hkd,divi_ratio
+```
+
+---
+
+### HK vs A-Share API 数据格式对比
+
+| 维度 | A股 (income/balancesheet/cashflow) | 港股 (hk_income/hk_balancesheet/hk_cashflow) |
+|------|-------------------------------------|----------------------------------------------|
+| 数据格式 | **结构化字段** — 每个指标一列 | **行转列 (pivoted)** — `ind_name` + `ind_value` |
+| 指标名称 | 英文字段名 (e.g. `n_income_attr_p`) | 中文字符串 (e.g. `股东应占溢利`) |
+| 报告类型 | `report_type` 区分合并/母公司报表 | 默认合并报表，无母公司报表 |
+| 金额单位 | 人民币 (元) | 港币 HKD (元) |
+
+| 维度 | A股 (fina_indicator) | 港股 (hk_fina_indicator) |
+|------|---------------------|--------------------------|
+| 数据格式 | 结构化字段 | 结构化字段 (相同风格) |
+| 字段名称 | e.g. `grossprofit_margin` | e.g. `gross_profit_ratio` |
+| 估值字段 | 无 (需从 `daily_basic` 获取) | 内含 `pe_ttm`, `pb_ttm`, `total_market_cap` |
+| 分红字段 | 无 (需从 `dividend` 获取) | 内含 `dps_hkd`, `divi_ratio`, `dividend_rate` |
+
+---
+
 *龟龟投资策略 v1.0 | Tushare API 参考文档*

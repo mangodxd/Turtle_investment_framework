@@ -48,13 +48,24 @@ def get_token() -> str:
     return token
 
 
+def get_api_url() -> Optional[str]:
+    """Return custom Tushare API URL if TUSHARE_API_URL is set.
+
+    When a broker API URL is configured, TushareClient will route all calls
+    through it and auto-upgrade to VIP endpoints for better rate limits.
+    """
+    _load_env_file()
+    return os.environ.get("TUSHARE_API_URL") or None
+
+
 def validate_stock_code(code: str) -> str:
     """Validate and normalize a stock code to Tushare format.
 
     Supports:
         - A-share: 600887.SH, 000858.SZ, 300750.SZ
-        - HK: 00700.HK, 09988.HK
+        - HK: 00700.HK, 09988.HK (1-5 digits, zero-padded to 5)
         - Plain codes: 600887 -> 600887.SH, 000858 -> 000858.SZ
+        - Plain 1-5 digit codes -> HK (e.g., 696 -> 00696.HK)
 
     Args:
         code: Stock code string.
@@ -70,8 +81,9 @@ def validate_stock_code(code: str) -> str:
     # Already in Tushare format
     if re.match(r"^\d{6}\.(SH|SZ)$", code):
         return code
-    if re.match(r"^\d{5}\.HK$", code):
-        return code
+    m = re.match(r"^(\d{1,5})\.HK$", code)
+    if m:
+        return f"{m.group(1).zfill(5)}.HK"
 
     # Plain 6-digit A-share code
     if re.match(r"^\d{6}$", code):
@@ -85,9 +97,9 @@ def validate_stock_code(code: str) -> str:
                 "Expected 6xxxxx (SH), 0xxxxx or 3xxxxx (SZ)."
             )
 
-    # Plain 5-digit HK code
-    if re.match(r"^\d{5}$", code):
-        return f"{code}.HK"
+    # Plain 1-5 digit HK code
+    if re.match(r"^\d{1,5}$", code):
+        return f"{code.zfill(5)}.HK"
 
     raise ValueError(
         f"Unrecognized stock code format: '{code}'. "

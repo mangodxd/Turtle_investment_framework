@@ -926,3 +926,36 @@ class TestZoneDetection:
         result = find_section_pages(pages)
         # Should prefer page 3 (MDA_ZONE) over page 60 (NOTES_ZONE)
         assert result["MDA"][0] == 3
+
+    def test_p3_prefers_ar_over_prepayment_aging(self):
+        """P3 should select AR aging page, not prepayment aging page."""
+        pages = [
+            (1, "第十节 财务报告"),
+            (5, "四、重要会计政策"),
+            (15, "七、合并财务报表项目注释"),
+            (20, "预付款项按账龄列示 预付款项 1年以内 金额表"),
+            (25, "应收账款账龄 1年以内80%金额表"),
+        ]
+        result = find_section_pages(pages)
+        # Should prefer page 25 (AR aging) over page 20 (prepayment aging)
+        assert result["P3"][0] == 25
+
+    def test_p3_context_scoring_penalizes_non_ar(self):
+        """Non-AR aging context (预付款项) should score lower than AR aging."""
+        text_prepay = "预付款项按账龄列示 预付款项 1年以内 金额 比例"
+        score_prepay = _score_match(
+            150, 270, text_prepay, "应收账款按账龄列示",
+            zone="NOTES_ZONE", section_id="P3"
+        )
+        # This won't match (keyword not in text), so test with a keyword that does match
+        text_prepay2 = "预付款项 账龄分析 1年以内 金额 比例"
+        score_prepay2 = _score_match(
+            150, 270, text_prepay2, "账龄分析",
+            zone="NOTES_ZONE", section_id="P3"
+        )
+        text_ar = "应收账款 账龄分析 1年以内80%金额表"
+        score_ar = _score_match(
+            150, 270, text_ar, "账龄分析",
+            zone="NOTES_ZONE", section_id="P3"
+        )
+        assert score_ar > score_prepay2

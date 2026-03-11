@@ -58,6 +58,11 @@ integration = pytest.mark.skipif(
 )
 
 
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "integration: mark test as requiring live API access")
+
+
 @pytest.fixture(autouse=True)
 def _isolate_env_file(monkeypatch, tmp_path):
     """Prevent _load_env_file from finding the real .env during tests."""

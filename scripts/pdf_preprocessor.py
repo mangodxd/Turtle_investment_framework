@@ -58,7 +58,7 @@ SECTION_KEYWORDS: Dict[str, List[str]] = {
         "应收账款的账龄",
         "账龄分析",
         "应收账款按账龄披露",
-        "按账龄列示",
+        "应收账款按账龄列示",
         "应收款项账龄",
         # Traditional Chinese
         "應收賬款賬齡",
@@ -424,6 +424,13 @@ def _score_match(
         subs = ["主营业务", "营业收入", "净利润", "注册资本", "持股比例"]
         if sum(1 for s in subs if s in context_window) >= 2:
             score += 1.0
+
+    # P3 context scoring: penalize non-AR aging (prepayments, other payables)
+    if section_id == "P3" and kw_pos >= 0:
+        context_window = text[max(0, kw_pos - 200):min(len(text), kw_pos + 200)]
+        non_ar = ["预付款项", "预付账款", "预付", "应付账款", "应付票据", "其他应付"]
+        if any(term in context_window for term in non_ar):
+            score -= 2.0
 
     # Bonus: keyword appears near a numbered heading pattern
     # e.g., "31、所有权或使用权受限资产" or "十四、关联方及关联交易"

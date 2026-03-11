@@ -952,6 +952,77 @@ class TestFactor4Metrics:
                                                     total_mv_wan=2e7)
         assert isinstance(result, dict)
 
+    def test_precomputed_fina_indicator(self, tmp_path):
+        """When fina_indicator has ebitda/netdebt/fcff, use pre-computed values."""
+        screener = _make_screener(tmp_path)
+        inc, bs, cf = self._make_mock_data()
+
+        # fina_indicator with pre-computed values (in yuan)
+        fi_df = pd.DataFrame({
+            "ts_code": ["A.SH"], "end_date": ["20251231"],
+            "roe_waa": [15.0], "grossprofit_margin": [30.0],
+            "debt_to_assets": [40.0], "profit_dedt": [3.8e9],
+            "ebitda": [7.5e9], "fcff": [5e9], "netdebt": [-5e8],
+            "interestdebt": [2.8e9],
+        })
+
+        def _mock_call(api_name, **kwargs):
+            if api_name == "income":
+                return inc
+            if api_name == "balancesheet":
+                return bs
+            if api_name == "cashflow":
+                return cf
+            if api_name == "fina_indicator":
+                return fi_df
+            return pd.DataFrame()
+
+        screener._safe_call = _mock_call
+        result = screener._extract_factor4_metrics("A.SH", close=100.0,
+                                                    total_mv_wan=2e7)
+
+        # EBITDA should use fina_indicator value: 7.5e9 / 1e6 = 7500
+        assert abs(result["ebitda"] - 7500.0) < 0.01
+        # FCF should use fina_indicator value: 5e9 / 1e6 = 5000
+        assert abs(result["fcf"] - 5000.0) < 0.01
+        # Net debt = -5e8 / 1e6 = -500 (net cash position)
+        # EV = mkt_cap + net_debt = 200000 + (-500) = 199500
+        assert abs(result["ev"] - 199500.0) < 0.01
+
+    def test_fallback_when_fina_indicator_missing(self, tmp_path):
+        """When fina_indicator lacks ebitda/netdebt/fcff, fall back to manual."""
+        screener = _make_screener(tmp_path)
+        inc, bs, cf = self._make_mock_data()
+
+        # fina_indicator WITHOUT pre-computed fields
+        fi_df = pd.DataFrame({
+            "ts_code": ["A.SH"], "end_date": ["20251231"],
+            "roe_waa": [15.0], "grossprofit_margin": [30.0],
+            "debt_to_assets": [40.0], "profit_dedt": [3.8e9],
+        })
+
+        def _mock_call(api_name, **kwargs):
+            if api_name == "income":
+                return inc
+            if api_name == "balancesheet":
+                return bs
+            if api_name == "cashflow":
+                return cf
+            if api_name == "fina_indicator":
+                return fi_df
+            return pd.DataFrame()
+
+        screener._safe_call = _mock_call
+        result = screener._extract_factor4_metrics("A.SH", close=100.0,
+                                                    total_mv_wan=2e7)
+
+        # Manual EBITDA: oper_profit(5e9) + fin_exp(2e8) + DA(9.5e8) all / 1e6
+        manual_ebitda = 5e9/1e6 + 2e8/1e6 + (8e8 + 1e8 + 5e7)/1e6
+        assert abs(result["ebitda"] - manual_ebitda) < 0.01
+        # Manual FCF: ocf(6e9) - capex(2e9) / 1e6
+        manual_fcf = (6e9 - 2e9) / 1e6
+        assert abs(result["fcf"] - manual_fcf) < 0.01
+
 
 # ============================================================
 # Feature #104: Floor Price

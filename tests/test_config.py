@@ -113,9 +113,25 @@ class TestValidateStockCode:
         with pytest.raises(ValueError, match="Unrecognized"):
             validate_stock_code("")
 
-    def test_too_short(self):
-        with pytest.raises(ValueError, match="Unrecognized"):
-            validate_stock_code("123")
+    # Variable-length HK codes (1-5 digits with suffix, zero-padded)
+    def test_hk_4digit_suffix(self):
+        assert validate_stock_code("0696.HK") == "00696.HK"
+
+    def test_hk_4digit_suffix_no_leading_zero(self):
+        assert validate_stock_code("9988.HK") == "09988.HK"
+
+    def test_hk_1digit_suffix(self):
+        assert validate_stock_code("5.HK") == "00005.HK"
+
+    # Variable-length HK codes (plain digits, zero-padded)
+    def test_plain_hk_3digit(self):
+        assert validate_stock_code("696") == "00696.HK"
+
+    def test_plain_hk_4digit(self):
+        assert validate_stock_code("9988") == "09988.HK"
+
+    def test_plain_hk_1digit(self):
+        assert validate_stock_code("5") == "00005.HK"
 
 
 # --- check_local_pdf() ---

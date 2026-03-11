@@ -576,7 +576,8 @@ class TushareScreener:
                 y = str(r.get("end_date", ""))[:4]
                 cash_div = r.get("cash_div_tax")
                 base_share = r.get("base_share")
-                if cash_div is not None and base_share is not None:
+                if (cash_div is not None and pd.notna(cash_div)
+                        and base_share is not None and pd.notna(base_share)):
                     try:
                         div_total = float(cash_div) * float(base_share) * 10000 / 1e6  # 百万元
                         div_lookup[y] = div_total
