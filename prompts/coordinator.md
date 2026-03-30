@@ -1,21 +1,8 @@
-# 龟龟投资策略 v1.0 — 协调器（Coordinator）
+# 龟龟投资策略 v2.0 — 协调器（Coordinator）
 
-> 本文件为多阶段分析的调度中枢。协调器自身不执行数据获取或分析计算，仅负责：
-> (1) 解析用户输入；(2) 通过 AskUserQuestion 补全关键信息；(3) 按依赖关系调度 Phase 0/1/2/3；(4) 交付最终报告。
-
----
-
-## v1.0 变更摘要（vs v0.16_alpha）
-
-- **新增 Phase 0**：内置 `/download-report` 命令，自动搜索并下载年报 PDF
-- **Phase 1 拆分两步**：Step A = `tushare_collector.py`（Python 脚本采集结构化数据）+ Step B = Agent WebSearch（非结构化信息）
-- **Phase 2 拆分两步**：Step A = `pdf_preprocessor.py`（Python 关键词定位 7 章节：P2-P13 + MDA + SUB）+ Step B = Agent 精提取（5+1 项 footnote 数据，SUB 条件触发）
-- **Pipeline 重排**：Phase 1A + Phase 2A 并行运行；Phase 1B 在 Phase 1A 完成后立即启动（§10 到达时检查 pdf_sections.json）
-- **单位统一**：所有金额单位为 **百万元**（Tushare 原始单位元 ÷ 1e6）
-- **新增母公司报表**：§3P/§4P 母公司损益表和资产负债表（Tushare `report_type=4`）
-- **yfinance 保留为 fallback**：Tushare 失败时降级使用
-- **AskUserQuestion 交互**：结构化收集持股渠道、PDF 处理方式、Tushare Token 等
-- **渐进式披露**：Phase 3 精简执行器 + references/ 按需加载
+> **角色**：你是项目经理。职责：(1) 验证输入并通过 AskUserQuestion 补全缺失信息；(2) 按依赖关系调度 Phase 0→1→2→3；(3) 监控 checkpoint 和超时；(4) 交付最终报告。你不执行数据采集或分析计算。
+>
+> 变更日志见 `prompts/CHANGELOG.md`（不加载进 context）
 
 ---
 
@@ -39,84 +26,17 @@
 
 ## AskUserQuestion 交互
 
-当用户输入不完整或存在歧义时，**立即使用 AskUserQuestion 工具**收集必要信息，而不是猜测或使用默认值。
+输入不完整时，**立即使用 AskUserQuestion**，不猜测。
 
-### 触发条件与问题模板
+| # | 触发条件 | 问题 | 选项 |
+|---|---------|------|------|
+| 1 | 港股标的 + 渠道未指定 | "通过什么渠道持有？" | 港股通(20%税) / 直接(H股28%/红筹20%) |
+| 2 | 多地上市 | "{公司}分析哪个市场？" | 港股({代码}) / A股({代码}) |
+| 3 | 无PDF + 无本地缓存 | "是否有最新年报PDF？" | 自动下载(推荐) / 跳过(~85%精度) / 稍后上传 |
+| 4 | 模糊公司名 | "确认您要分析的公司" | {公司1}({代码1}) / {公司2}({代码2}) |
+| 5 | TUSHARE_TOKEN 未设置 | "请提供 Tushare Token" | 我有Token / 没有(降级yfinance) |
 
-**条件1：持股渠道未指定（港股标的）**
-
-```
-AskUserQuestion:
-  question: "请问您通过什么渠道持有这只港股？"
-  header: "持股渠道"
-  options:
-    - label: "港股通（推荐）"
-      description: "通过内地券商的港股通渠道持有，适用20%股息税率"
-    - label: "直接持有"
-      description: "通过香港券商直接持有，H股适用28%股息税率，红筹/开曼适用20%"
-```
-
-**条件2：标的为多地上市公司**
-
-```
-AskUserQuestion:
-  question: "{公司名}同时在A股和港股上市，您希望分析哪个市场的股票？"
-  header: "分析市场"
-  options:
-    - label: "港股 ({港股代码})"
-      description: "分析港股市场的股票，适用港股估值门槛和税率"
-    - label: "A股 ({A股代码})"
-      description: "分析A股市场的股票，适用A股估值门槛和税率"
-```
-
-**条件3：未上传年报PDF且未检测到本地缓存**
-
-```
-AskUserQuestion:
-  question: "您是否有该公司的最新年报PDF？上传年报可以获得更精确的附注数据分析。"
-  header: "年报PDF"
-  options:
-    - label: "没有，自动下载（推荐）"
-      description: "Phase 0 自动从雪球/同花顺搜索并下载最新年报PDF"
-    - label: "没有，跳过"
-      description: "仅使用 Tushare + WebSearch 数据分析，部分模块将使用降级方案（~85%精度）"
-    - label: "稍后上传"
-      description: "我会手动上传年报PDF文件"
-```
-
-**条件4：模糊的公司名称**
-
-```
-AskUserQuestion:
-  question: "搜索到多个匹配结果，请确认您要分析的公司："
-  header: "确认标的"
-  options:
-    - label: "{公司1} ({代码1})"
-      description: "{行业/简介}"
-    - label: "{公司2} ({代码2})"
-      description: "{行业/简介}"
-```
-
-**条件5：Tushare Token 未配置**
-
-```
-AskUserQuestion:
-  question: "本策略需要 Tushare Pro API Token 来获取财务数据。请提供您的 Token（可从 tushare.pro 注册获取）："
-  header: "Tushare Token"
-  options:
-    - label: "我有 Token"
-      description: "请在下方输入您的 Tushare Pro Token"
-    - label: "没有 Token"
-      description: "将使用 yfinance 作为备用数据源（数据精度可能降低）"
-```
-
-### 不触发 AskUserQuestion 的情况
-
-- 用户提供了完整的股票代码（如 `600887`、`0001.HK`）→ 直接执行
-- A股标的且未指定渠道 → 默认"长期持有"
-- 美股标的且未指定渠道 → 默认"W-8BEN"
-- 用户在消息中明确说了渠道（如"我通过港股通持有长和"）→ 直接使用
-- 环境变量 `TUSHARE_TOKEN` 已设置 → 直接使用
+**不触发**：完整股票代码 → 直接执行；A股默认"长期持有"；美股默认"W-8BEN"；用户已指定渠道 → 直接使用；`TUSHARE_TOKEN` 已设置 → 直接使用
 
 ---
 
@@ -224,167 +144,65 @@ AskUserQuestion:
 
 ## Sub-agent 调用指令
 
-### 环境准备（首次运行）
+### 环境准备
 
 ```bash
-# 安装 Python 依赖
 pip install tushare pandas pdfplumber --break-system-packages
 ```
 
 ### Phase 0：PDF 自动获取
 
 ```
-# 步骤 1：下载年报（必选，仅当用户选择"自动下载"时执行）
 /download-report {stock_code} {year} 年报
-# 或手动调用: python3 scripts/download_report.py --url <URL> --stock-code <code> --report-type 年报 --year <year> --save-dir {output_dir}
-# 下载目标年报 → {output_dir}/{code}_{year}_年报.pdf
-
-# 检查下载结果
-# 成功 → pdf_path = 下载文件路径
-# 失败 → pdf_path = None，进入无 PDF 模式
-
-# 步骤 2：下载中报（条件触发）
-# ⚠️ 仅当 Phase 1A 输出显示中报已发布时执行（见中报时效性规则）
-# 下载目标中报 → {output_dir}/{code}_{year}_中报.pdf
+# 成功 → pdf_path = 文件路径 | 失败 → pdf_path = None，无 PDF 模式
+# 中报（条件触发）：仅当 Phase 1A 输出含 H1 列时下载
 ```
 
 ### Step A：Python 脚本（Phase 1A + Phase 2A 并行）
 
 ```
-# === Phase 1A：Tushare 采集（Bash 调用）===
-Bash(
-  command = "python3 scripts/tushare_collector.py --code {ts_code} --output {output_dir}/data_pack_market.md",
-  description = "Phase1A Tushare采集"
-)
-# 输出：data_pack_market.md（§1-§6, §7部分, §9, §11, §12, §14, §15, §16, §3P, §4P, 审计意见, §13.1）
-# 输出：available_fields.json（可用字段清单）
+# Phase 1A：Tushare 采集
+Bash("python3 scripts/tushare_collector.py --code {ts_code} --output {output_dir}/data_pack_market.md")
+# → data_pack_market.md (§1-§6,§7部分,§9,§11-§16,§3P,§4P,审计意见,§13.1) + available_fields.json
 
-# === Phase 2A.5（可选）：Agent 读取 PDF 前 10 页提取 TOC ===
-# ⚠️ 仅当有 PDF 时执行，可与 Phase 1A 并行
-Task(
-  subagent_type = "general-purpose",
-  prompt = """
-  读取 PDF 文件 {output_dir}/{code}_{year}_年报.pdf 前 10 页。从目录页提取章节→页码映射，重点定位：
-  - "主要控股参股公司" 或 "在子公司中的权益" 章节的起始页
-  - "管理层讨论与分析" 章节的起始页
-  输出 JSON: {output_dir}/toc_hints.json
-  格式: {"SUB": {"page": N, "title": "..."}, "MDA": {"page": N, "title": "..."}}
-  若目录页不存在或无法解析，输出空 JSON: {}
-  """,
-  description = "Phase2A.5 TOC定位"
-)
+# Phase 2A.5（可选，有PDF时）：TOC 定位
+Task("读取 {pdf_path} 前10页，提取 SUB/MDA 章节页码 → {output_dir}/toc_hints.json")
 
-# === Phase 2A：PDF 预处理（Bash 调用，仅当有 PDF 时，等待 Phase 2A.5）===
-# 年报 PDF（必选，若有 PDF）
-Bash(
-  command = "python3 scripts/pdf_preprocessor.py --pdf {output_dir}/{code}_{year}_年报.pdf --output {output_dir}/pdf_sections.json --hints {output_dir}/toc_hints.json",
-  description = "Phase2A PDF预处理-年报"
-)
-# 输出：pdf_sections.json（7 段文本片段：P2/P3/P4/P6/P13/MDA/SUB）
-
-# 中报 PDF（条件触发，若中报 PDF 存在）
-Bash(
-  command = "python3 scripts/pdf_preprocessor.py --pdf {output_dir}/{code}_{h1_year}_中报.pdf --output {output_dir}/pdf_sections_interim.json",
-  description = "Phase2A PDF预处理-中报"
-)
+# Phase 2A：PDF 预处理（有PDF时，等待2A.5）
+Bash("python3 scripts/pdf_preprocessor.py --pdf {pdf_path} --output {output_dir}/pdf_sections.json --hints {output_dir}/toc_hints.json")
+# → pdf_sections.json (P2/P3/P4/P6/P13/MDA/SUB)
+# 中报（条件触发）：同命令，输入中报PDF，输出 pdf_sections_interim.json
 ```
 
-### Step B：Agent（Phase 1B 在 Phase 1A 完成后立即启动，Phase 2B 等待 Phase 2A）
+### Step B：Agent（Phase 1A 完成后启动）
 
 ```
-# === Phase 1B：Agent WebSearch 补充（Task 调用）===
-# ⚠️ Phase 1A 完成后立即启动，不等待 Phase 2A
-Task(
-  subagent_type = "general-purpose",
-  prompt = """
-  请阅读 {prompts_dir}/phase1_数据采集.md 中的完整指令。
+# Phase 1B：WebSearch 补充（Phase 1A 完成后立即启动，不等 Phase 2A）
+Task(prompt="""
+  阅读 {prompts_dir}/phase1_数据采集.md 完整指令。
+  目标：{stock_code}（{company_name}），渠道：{channel}
+  补充 §7(定性)/§8/§9B(条件)/§10/§13.2 → 替换 data_pack_market.md 占位符
+  §10 优先用 pdf_sections.json MDA 字段，不可用则 WebSearch
+""")
 
-  目标股票：{stock_code}（{company_name}）
-  持股渠道：{channel}
-
-  data_pack_market.md 已由 tushare_collector.py 生成了 §1-§6, §7(部分:十大股东), §9, §11, §12, §14, §15, §16, §3P, §4P, 审计意见, §13.1 部分。
-  你的任务是通过 WebSearch 补充以下章节，追加到 {output_dir}/data_pack_market.md：
-  - §7 管理层与治理
-  - §8 行业与竞争
-  - §9B 上市子公司识别（条件触发：仅控股公司）
-  - §10 MD&A 摘要
-  - §13 Warnings
-
-  §7/§8/§9B 不依赖 pdf_sections.json，直接通过 WebSearch 获取。
-  §10 执行时检查 {output_dir}/pdf_sections.json 是否存在：
-    若存在 → 优先使用其中的 MDA 字段
-    若不存在 → 使用 WebSearch fallback 获取 MDA 摘要
-
-  注意：data_pack_market.md 中 §8, §10, §13.2 含占位符 `*[§N 待Agent WebSearch补充]*`。
-  使用 Edit 工具**替换**这些占位符为实际内容，而非在文件末尾追加。
-  §7 已有结构化数据（十大股东表+审计意见），在其后追加定性信息即可。
-  """,
-  description = "Phase1B WebSearch补充"
-)
-
-# === Phase 2B：Agent 精提取（Task 调用，仅当有 PDF 时）===
-Task(
-  subagent_type = "general-purpose",
-  prompt = """
-  请阅读 {prompts_dir}/phase2_PDF解析.md 中的完整指令。
-
-  pdf_sections.json 文件路径：{output_dir}/pdf_sections.json
-  中报 pdf_sections（若有）：{output_dir}/pdf_sections_interim.json
-  公司名称：{company_name}
-  将解析结果写入：{output_dir}/data_pack_report.md
-  将中报解析结果写入（若有中报）：{output_dir}/data_pack_report_interim.md
-  """,
-  description = "Phase2B PDF精提取"
-)
+# Phase 2B：PDF 精提取（有PDF时，等待 Phase 2A）
+Task(prompt="""
+  阅读 {prompts_dir}/phase2_PDF解析.md 完整指令。
+  输入：{output_dir}/pdf_sections.json（+ pdf_sections_interim.json 若有中报）
+  输出：{output_dir}/data_pack_report.md（+ data_pack_report_interim.md 若有中报）
+""")
 ```
 
-### Phase 3：分析与报告
+### Phase 3：分析与报告（等待全部完成）
 
 ```
-# 等待 Phase 1 + Phase 2 全部完成后启动
-Task(
-  subagent_type = "general-purpose",
-  prompt = """
-  请阅读 {prompts_dir}/phase3_分析与报告.md 中的完整指令。
-
-  数据包文件：
-    - {output_dir}/data_pack_market.md
-    - {output_dir}/data_pack_report.md （年报附注，若存在）
-    - {output_dir}/data_pack_report_interim.md （中报附注，若存在）
-  因子参考文件目录：{prompts_dir}/references/
-  将分析报告写入：{output_dir}/{company}_{code}_分析报告.md
-
-  注意事项：
-  - 所有金额单位为百万元（人民币），报告中显示时使用千位逗号分隔
-  - 母公司报表数据来自 data_pack_market.md §3P/§4P
-  - 若 data_pack_report.md 不存在，使用降级方案
-  - ⚠️ 当中报数据包存在时，应优先使用中报中更新的数据（如最新受限资产、
-    应收账款账龄等），但年报数据作为完整年度基线仍需参考
-  """,
-  description = "Phase3 分析报告"
-)
-```
-
-### 当没有 PDF 年报时（跳过 Phase 2）
-
-```
-# Phase 1 完成后直接启动 Phase 3（无 data_pack_report.md）
-Task(
-  subagent_type = "general-purpose",
-  prompt = """
-  请阅读 {prompts_dir}/phase3_分析与报告.md 中的完整指令。
-
-  数据包文件：
-    - {output_dir}/data_pack_market.md
-  注意：本次分析无年报PDF。data_pack_report.md 不存在。
-  - P2/P3/P4/P6/P13 附注数据不可用，使用降级方案
-  - MDA 不可用，§10 MD&A 基于 WebSearch 获取的摘要信息
-  - 母公司单体报表数据已通过 Tushare report_type=4 获取，在 §3P/§4P 中
-  因子参考文件目录：{prompts_dir}/references/
-  将分析报告写入：{output_dir}/{company}_{code}_分析报告.md
-  """,
-  description = "Phase3 分析报告（无PDF模式）"
-)
+Task(prompt="""
+  阅读 {prompts_dir}/phase3_分析与报告.md 完整指令。
+  数据包：{output_dir}/data_pack_market.md + data_pack_report.md(若有) + data_pack_report_interim.md(若有)
+  参考文件：{prompts_dir}/references/
+  输出：{output_dir}/{company}_{code}_分析报告.md
+  规则：百万元+千位逗号 | §3P/§4P 母公司报表 | 无PDF→降级方案 | 中报数据优先用于P2/P3/P6
+""")
 ```
 
 ---
@@ -430,6 +248,53 @@ Phase 2A (处理全部 PDF)
 
 ---
 
+## 阶段超时规则
+
+| 阶段 | 最大执行时间 | 超时行为 |
+|------|------------|---------|
+| Phase 0 PDF下载 | 3分钟 | 标注 Warning，进入无 PDF 模式 |
+| Phase 1A Tushare采集 | 2分钟 | 检查已获取的数据，部分降级继续 |
+| Phase 1B WebSearch | 5分钟 | 已完成的 §N 保留，未完成的标注 "⚠️ 超时未完成" |
+| Phase 2A PDF预处理 | 3分钟 | 跳过 Phase 2，进入无 PDF 模式 |
+| Phase 2B PDF精提取 | 3分钟 | 已提取项保留，未提取项标注 null |
+| Phase 3 分析 | 15分钟 | 输出已完成因子的部分报告 |
+
+超时后，协调器应立即推进下一阶段，不等待。总管线预计最大执行时间 ≤ 30分钟。
+
+---
+
+## Phase 3 数据澄清回流
+
+Phase 3 Agent 在分析过程中，若发现关键数据歧义或缺失，可触发数据回流。
+
+### 触发条件（仅限以下情况）
+1. 关键计算所需数据在 data_pack 中为 "—" 且无法降级（如支付率分母为零）
+2. 数据存在但数值异常（如支付率 > 200%），需要交叉验证
+3. 控股结构中某上市子公司市值/持股比例缺失
+
+### 回流机制
+
+Phase 3 在报告文件中写入 clarification request 标记：
+```
+<!-- CLARIFICATION_REQUEST
+type: [missing_data | verify_anomaly | subsidiary_lookup]
+target: [§N 具体字段]
+question: [具体问题]
+-->
+```
+
+协调器在 Phase 3 第一个 checkpoint（因子1A完成后）检查报告文件：
+- 若包含 `CLARIFICATION_REQUEST` → 暂停 Phase 3，启动补充 WebSearch
+- 补充结果追加到 `data_pack_market.md` 对应章节
+- 重启 Phase 3（从上次 checkpoint 继续）
+
+### 限制
+- 最多触发 **1次** 回流（防止循环）
+- 仅限 WebSearch 补充，不重新运行 Tushare/PDF 脚本
+- 回流超时：5分钟（超时则 Phase 3 使用降级方案继续）
+
+---
+
 ## 异常处理
 
 | 异常情况 | 处理方式 |
@@ -452,7 +317,7 @@ Phase 2A (处理全部 PDF)
 每个标的的运行时输出放在独立文件夹中，避免多次分析互相覆盖。
 
 **变量定义**：
-- `{workspace}` = 龟龟投资策略_v1.0 根目录
+- `{workspace}` = 龟龟投资策略 根目录
 - `{prompts_dir}` = `{workspace}/prompts`
 - `{output_dir}` = `{workspace}/output/{代码}_{公司}`（如 `output/600887_伊利股份`、`output/00001_长和`）
 
@@ -464,6 +329,11 @@ Phase 2A (处理全部 PDF)
 │   ├── phase2_PDF解析.md                        ← Phase 2 Step B prompt（5项精提取）
 │   ├── phase3_分析与报告.md                      ← Phase 3 精简执行器
 │   └── references/                              ← 因子详细规则（按需加载）
+│       ├── shared_tables.md                     ← 共享参数表（支付率/税率/门槛/跨币种）
+│       ├── factor_interface.md                  ← 因子间参数传递 schema（v2.0 新增）
+│       ├── judgment_examples.md                 ← 关键判断锚点示例（v2.0 新增）
+│       ├── market_rules_hk.md                   ← 港股特别规则（条件加载，v2.0 新增）
+│       ├── market_rules_us.md                   ← 美股特别规则（条件加载，v2.0 新增）
 │       ├── factor1_资产质量与商业模式.md
 │       ├── factor2_穿透回报率粗算.md
 │       ├── factor3_穿透回报率精算.md
@@ -496,4 +366,28 @@ mkdir -p {workspace}/output/{code}_{company}
 
 ---
 
-*龟龟投资策略 v1.0 | 多阶段 Sub-agent 架构 | Coordinator*
+## 数据约定
+
+### 金额单位转换
+
+所有阶段（Phase 1/2/3）的金额统一为 **百万元**（Tushare 原始单位元 ÷ 1e6）。
+
+| 原始单位 | 转换方法 | 示例 |
+|---------|---------|------|
+| 元 | ÷ 1,000,000 | 96,886,000,000 元 → 96,886.00 百万元 |
+| 千元 | ÷ 1,000 | 96,886,000 千元 → 96,886.00 百万元 |
+| 万元 | ÷ 100 | 9,688,600 万元 → 96,886.00 百万元 |
+| 亿元 | × 100 | 968.86 亿元 → 96,886.00 百万元 |
+
+显示格式：使用千位逗号分隔（如 96,886.00），百分比保留2位小数。
+
+### Phase 0 重试规则
+
+PDF 下载最多重试 **3次**（指数退避：3s / 6s / 9s）。3次均失败：
+- 在 §13 中生成 `[数据缺失|中] PDF年报下载失败，已使用3次重试`
+- 进入无 PDF 模式（跳过 Phase 2，Phase 3 使用降级方案）
+- 不尝试替代 URL（仅使用 `/download-report` 返回的首选 URL）
+
+---
+
+*龟龟投资策略 v2.0 | 多阶段 Sub-agent 架构 | Coordinator*

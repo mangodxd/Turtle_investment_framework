@@ -366,10 +366,9 @@ class TestOptimizationBFactor2Streamlined:
         output_section = factor2_text.split("## 因子2输出")[-1]
         assert "可预测性：[高" not in output_section
 
-    def test_factor2_preserves_tax_table(self, factor2_text):
-        """Factor 2 should still contain the tax rate lookup table."""
-        assert "港股H股" in factor2_text
-        assert "W-8BEN" in factor2_text
+    def test_factor2_references_shared_tables(self, factor2_text):
+        """Factor 2 should reference shared_tables.md for tax rates (v1.1: centralized)."""
+        assert "shared_tables.md" in factor2_text
 
     def test_factor2_preserves_veto(self, factor2_text):
         """Factor 2 should preserve the veto gate rules."""
