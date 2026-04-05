@@ -3,6 +3,8 @@
 Data pack assembly, derived metrics orchestration, and warning collection.
 """
 
+import re
+
 import pandas as pd
 
 from format_utils import format_number, format_table, format_header
@@ -47,6 +49,157 @@ class AssemblyMixin:
                 lines.append("")
 
         return "\n".join(lines)
+
+    # --- Refresh-market helpers ---
+
+    @staticmethod
+    def _parse_sections(content: str):
+        """Split data_pack_market.md content into header, sections list, and footer.
+
+        Returns:
+            (header_str, sections_list, footer_str)
+            - header_str: everything before the first ``## `` line
+            - sections_list: list of (key, content) tuples preserving original order.
+              key is the section ID string (e.g., "1", "2", "3P", "9B", "17", "13").
+              content is the full text from ``## N.`` to just before the next ``## ``.
+            - footer_str: trailing ``---`` line and completion summary (if any)
+        """
+        # Pattern: ## <digits><optional uppercase letter(s)>. <title>
+        section_re = re.compile(r"^(## (\d+[A-Z]?)\. .*)$", re.MULTILINE)
+
+        matches = list(section_re.finditer(content))
+        if not matches:
+            return content, [], ""
+
+        header = content[: matches[0].start()]
+
+        sections = []
+        for i, m in enumerate(matches):
+            key = m.group(2)
+            start = m.start()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+            sections.append((key, content[start:end]))
+
+        # Separate footer from the last section: look for trailing "---\n*共" pattern
+        footer = ""
+        if sections:
+            last_key, last_text = sections[-1]
+            footer_re = re.compile(r"\n---\n\*共 .+$", re.DOTALL)
+            fm = footer_re.search(last_text)
+            if fm:
+                footer = last_text[fm.start():]
+                sections[-1] = (last_key, last_text[: fm.start()])
+
+        return header, sections, footer
+
+    def _build_header(self, ts_code: str) -> str:
+        """Build the data pack header block (title, timestamp, source, unit).
+
+        Returns:
+            Header string ending with a blank line (ready to be followed by sections).
+        """
+        timestamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+        currency = self._detect_currency(ts_code)
+        self._currency = currency
+        unit_label = {"HKD": "百万港元", "USD": "百万美元"}.get(currency, "百万元")
+        lines = [
+            format_header(1, f"数据包 — {ts_code}"),
+            "",
+            f"*生成时间: {timestamp}*",
+            f"*数据来源: Tushare Pro*",
+            f"*金额单位: {unit_label} (除特殊标注)*",
+        ]
+        if currency == "HKD":
+            lines.append("*报表币种: HKD*")
+        elif currency == "USD":
+            lines.append("*报表币种: USD*")
+        lines.extend(["", "---", ""])
+        return "\n".join(lines)
+
+    @staticmethod
+    def _check_staleness(content: str) -> int:
+        """Return the number of days since the data pack was generated.
+
+        Parses ``*生成时间: YYYY-MM-DD HH:MM:SS*`` from the content header.
+        Returns 999 if the timestamp cannot be found or parsed.
+        """
+        m = re.search(r"\*生成时间:\s*(\d{4}-\d{2}-\d{2})", content)
+        if not m:
+            return 999
+        try:
+            gen_date = pd.Timestamp(m.group(1))
+            now = pd.Timestamp.now().normalize()
+            return (now - gen_date.normalize()).days
+        except Exception:
+            return 999
+
+    # Map section IDs to the fetch methods and their display names
+    _REFRESH_SECTIONS = {"1", "2", "11", "14"}
+
+    def refresh_market_sections(self, ts_code: str, existing_content: str) -> str:
+        """Re-fetch market-sensitive sections and merge with existing data pack.
+
+        Only sections 1 (基本信息), 2 (市场行情), 11 (十年周线行情), and 14 (无风险利率)
+        are refreshed. All other sections are preserved unchanged.
+
+        Args:
+            ts_code: Stock code (e.g., '600887.SH').
+            existing_content: Full text of the existing data_pack_market.md.
+
+        Returns:
+            Complete markdown string with refreshed header and market sections.
+        """
+        _header, sections, footer = self._parse_sections(existing_content)
+
+        # Build mapping from section ID to fetch callable
+        fetch_map = {
+            "1": ("1. 基本信息", self.get_basic_info),
+            "2": ("2. 市场行情", self.get_market_data),
+            "11": ("11. 十年周线行情", self.get_weekly_prices),
+            "14": ("14. 无风险利率", self.get_risk_free_rate),
+        }
+
+        # Detect currency for formatting (needed by get_* methods)
+        currency = self._detect_currency(ts_code)
+        self._currency = currency
+
+        # Re-fetch each refreshable section; keep old on failure
+        new_sections = []
+        for key, text in sections:
+            if key in fetch_map:
+                name, method = fetch_map[key]
+                try:
+                    print(f"  Refreshing {name}...")
+                    fresh_md = method(ts_code)
+                    # Ensure section text ends with a newline for clean joining
+                    if not fresh_md.endswith("\n"):
+                        fresh_md += "\n"
+                    new_sections.append((key, fresh_md))
+                except Exception as e:
+                    print(f"  ⚠️ Failed to refresh {name}: {e}, keeping old data")
+                    new_sections.append((key, text))
+            else:
+                new_sections.append((key, text))
+
+        # Build new header with refresh-mode annotation
+        new_header = self._build_header(ts_code)
+        new_header += "*刷新模式: --refresh-market（仅更新 §1/§2/§11/§14）*\n"
+        new_header += "\n"
+
+        # Reassemble
+        parts = [new_header]
+        for _key, text in new_sections:
+            parts.append(text)
+
+        result = "".join(parts)
+
+        # Re-attach footer
+        if footer:
+            result = result.rstrip("\n") + footer
+        else:
+            result = result.rstrip("\n") + "\n"
+
+        return result
 
     # --- Feature #28: Full data_pack_market.md assembly ---
 

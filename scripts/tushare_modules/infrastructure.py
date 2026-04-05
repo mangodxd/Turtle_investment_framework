@@ -242,13 +242,14 @@ class InfrastructureMixin:
         if div_df is None or div_df.empty or income_df.empty:
             return {}
 
-        # Build dividend total lookup by year
-        div_lookup = {}
+        # Build dividend total lookup by year (sum multiple payments per year)
+        div_lookup: dict[str, float] = {}
         for _, r in div_df.iterrows():
             year = str(r.get("end_date", ""))[:4]
             cash_div = self._safe_float(r.get("cash_div_tax")) or 0
             base_share = self._safe_float(r.get("base_share")) or 0
-            div_lookup[year] = cash_div * base_share * 10000  # base_share is 万股
+            payment = cash_div * base_share * 10000  # base_share is 万股
+            div_lookup[year] = div_lookup.get(year, 0) + payment
 
         # Build net income lookup by year
         np_lookup = {}

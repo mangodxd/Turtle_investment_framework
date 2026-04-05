@@ -43,7 +43,7 @@ def _get_tushare_client_class():
 # ============================================================
 
 _TIER2_FIELDS = {
-    "income": "ts_code,end_date,n_income_attr_p,operate_profit,finance_exp,non_oper_income,oth_income,asset_disp_income,revenue",
+    "income": "ts_code,end_date,n_income_attr_p,operate_profit,fin_exp,non_oper_income,oth_income,asset_disp_income,revenue",
     "balancesheet": ("ts_code,end_date,money_cap,trad_asset,st_borr,lt_borr,"
                      "bond_payable,non_cur_liab_due_1y,goodwill,total_assets,"
                      "total_hldr_eqy_exc_min_int"),
@@ -241,6 +241,10 @@ class TushareScreener:
             call_kwargs["ts_code"] = ts_code
 
         df = self._safe_call(api_name, **call_kwargs)
+
+        # Rename Tushare API fields to project internal names
+        if api_name == "income" and not df.empty:
+            df.rename(columns={"fin_exp": "finance_exp"}, inplace=True)
 
         # 5. Cache non-empty results
         if not df.empty:

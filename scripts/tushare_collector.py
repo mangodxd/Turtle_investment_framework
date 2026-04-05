@@ -217,6 +217,11 @@ Examples:
         action="store_true",
         help="Print parsed arguments and exit without calling API",
     )
+    parser.add_argument(
+        "--refresh-market",
+        action="store_true",
+        help="Only refresh market-sensitive sections (§1/§2/§11/§14) in existing data pack",
+    )
     return parser.parse_args()
 
 
@@ -242,8 +247,26 @@ def main():
     token = args.token or get_token()
     client = TushareClient(token)
 
-    print(f"Collecting data for {ts_code}...")
-    data_pack = client.assemble_data_pack(ts_code)
+    if args.refresh_market:
+        from pathlib import Path
+        output_path = Path(args.output)
+        if not output_path.exists():
+            print(f"⚠️ {output_path} does not exist, falling back to full collection")
+            print(f"Collecting data for {ts_code}...")
+            data_pack = client.assemble_data_pack(ts_code)
+        else:
+            existing = output_path.read_text(encoding="utf-8")
+            age_days = client._check_staleness(existing)
+            if age_days > 7:
+                print(f"⚠️ Data pack is {age_days} days old, falling back to full collection")
+                print(f"Collecting data for {ts_code}...")
+                data_pack = client.assemble_data_pack(ts_code)
+            else:
+                print(f"Refreshing market data for {ts_code} (data pack is {age_days} day(s) old)...")
+                data_pack = client.refresh_market_sections(ts_code, existing)
+    else:
+        print(f"Collecting data for {ts_code}...")
+        data_pack = client.assemble_data_pack(ts_code)
 
     # Handle extra fields
     if args.extra_fields:

@@ -9,44 +9,30 @@ Run a full Turtle Investment Framework (龟龟投资策略) analysis on stock: $
 
 Read strategies/turtle/coordinator.md for the full pipeline specification, then execute each phase:
 
-### Phase 0: PDF Acquisition (conditional)
-- Check if annual report PDF already exists in output/{code}_{company}/
-- If not found, use /download-report command (scripts/download_report.py) to search and download
-- If download fails, proceed without PDF (graceful degradation)
+### Prerequisite: Check BA outputs
+- **qualitative_report.md** — required. If missing, inform user to run `/business-analysis {stock_code}` first, then stop.
+- **data_pack_market.md** — required. If missing, same as above.
+- **data_pack_report.md** — optional. If missing, Agent B uses degraded mode (no PDF footnote data).
 
-### Phase 1A: Tushare Data Collection (Python script)
+### Step A: Market Data Refresh
 ```bash
-mkdir -p output/{code}_{company}
-python3 scripts/tushare_collector.py --code $ARGUMENTS --output output/{code}_{company}/data_pack_market.md
+python3 scripts/tushare_collector.py --code $ARGUMENTS --output output/{code}_{company}/data_pack_market.md --refresh-market
 ```
+- Refreshes §1 (price/market cap), §2 (52-week range), §11 (weekly prices), §14 (risk-free rate)
+- If data pack is >7 days old, auto-falls back to full collection
 
-### Phase 1B: WebSearch Qualitative Data (Agent)
-- Read strategies/turtle/phase1_数据采集.md for WebSearch instructions
-- Collect: management background, industry analysis, competitive landscape, recent news
-- Append results to data_pack_market.md sections §7, §8, §9B, §10, §13
-
-### Phase 2A: PDF Preprocessing (Python script, skip if no PDF)
-```bash
-python3 scripts/pdf_preprocessor.py --pdf output/{code}_{company}/*.pdf --output output/{code}_{company}/pdf_sections.json
-```
-
-### Phase 2B: PDF Structured Extraction (Agent, skip if no PDF)
-- Read strategies/turtle/phase2_PDF解析.md for extraction instructions
-- Extract P2/P3/P4/P6/P13 + MDA + SUB from pdf_sections.json
-- Output: output/{code}_{company}/data_pack_report.md
-
-### Phase 3: Analysis and Report (parallel Agent architecture)
+### Phase 3: Analysis and Report
 - **Step 3.0**: Read strategies/turtle/phase3_preflight.md for data validation
-- **Step 3.1a Agent A**: Read shared/qualitative/qualitative_assessment.md for 6-dimension qualitative analysis (shared module)
-  - Also load strategies/turtle/references/factor_interface.md for turtle-specific parameter mapping
-- **Step 3.1b Agent B**: Read strategies/turtle/phase3_quantitative.md for penetrating return rate calculation
+- **Step 3.1 Agent B**: Read strategies/turtle/phase3_quantitative.md for penetrating return rate calculation
 - **Step 3.2 Agent C**: Read strategies/turtle/phase3_valuation.md for valuation + report assembly
+  - Reads qualitative_report.md (from /business-analysis) for qualitative parameters
+  - Reads phase3_quantitative.md (from Agent B) for quantitative parameters
 - Output: output/{code}_{company}/{company}_{code}_分析报告.md
 
 ## Error Recovery
-- If any phase fails, log the error and continue with remaining phases
-- Phase 2 failure → Phase 3 runs in no-PDF degraded mode
-- Phase 1A failure → attempt yfinance fallback, then proceed with available data
+- Missing BA outputs → stop and prompt user to run /business-analysis first
+- Step A refresh failure → attempt yfinance fallback, then proceed with existing data
+- Missing data_pack_report.md → Agent B uses degraded mode (no footnote data)
 - Always produce a final report even if partial data
 
 ## Output

@@ -305,14 +305,22 @@ class FinancialsMixin:
         df = self._safe_call("income", ts_code=ts_code,
                              report_type=report_type,
                              fields="ts_code,end_date,report_type,"
-                                    "revenue,oper_cost,biz_tax_surch,"
-                                    "sell_exp,admin_exp,rd_exp,finance_exp,"
-                                    "assets_impair_loss,credit_impair_loss,"
+                                    "revenue,oper_cost,biz_tax_surchg,"
+                                    "sell_exp,admin_exp,rd_exp,fin_exp,"
+                                    "assets_impair_loss,credit_impa_loss,"
                                     "fv_value_chg_gain,invest_income,asset_disp_income,"
                                     "operate_profit,non_oper_income,non_oper_exp,"
                                     "total_profit,income_tax,"
                                     "n_income,n_income_attr_p,minority_gain,"
                                     "basic_eps,diluted_eps,dt_eps")
+        # Map Tushare API field names → project internal names
+        _INCOME_RENAME = {
+            "biz_tax_surchg": "biz_tax_surch",
+            "fin_exp": "finance_exp",
+            "credit_impa_loss": "credit_impair_loss",
+        }
+        if not df.empty:
+            df.rename(columns=_INCOME_RENAME, inplace=True)
         section_label = "3P. 母公司利润表" if report_type == "6" else "3. 合并利润表"
         lines = [format_header(2, section_label), ""]
 

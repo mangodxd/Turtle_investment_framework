@@ -1,17 +1,20 @@
 # 因子间参数传递接口（Factor Interface Schema）
 
 > 定义龟龟策略 Agent 间显式传递的参数名、类型和来源。消除"传递了什么"的歧义。
-> Agent A/B 输出时按 schema 列出参数值，Agent C 输入时按 schema 校验。
+> 定性报告/Agent B 输出时按 schema 列出参数值，Agent C 输入时按 schema 校验。
 >
-> **Agent A 定性参数来源**：Agent A 输出的结构化参数基于通用定性分析模块
-> （`shared/qualitative/references/output_schema.md`），本文件定义龟龟策略所需的子集和映射。
+> **定性参数来源**：定性参数来自 `/business-analysis` 模块的输出文件
+> `{output_dir}/qualitative_report.md` 末尾的结构化参数表
+> （参数定义见 `shared/qualitative/references/output_schema.md`）。
+> Agent C 直接读取该参数表，不再经由 Agent A 中转。
 >
-> **值域映射**：通用模块 `moat_rating` 值域为 (强/中/弱)，
-> 龟龟策略映射为 (优质/中性/负面)：强→优质，中→中性，弱→负面。
+> **值域映射**：通用模块 `moat_rating` 值域为 (强/较强/中/弱)（v1.1），
+> 龟龟策略映射为：强→优质，较强→优质，中→中性，弱→负面。
+> Agent C 在读取 qualitative_report.md 时执行此映射。
 
 ---
 
-## Pre-flight → Agent A / Agent B
+## Pre-flight → Agent B
 
 | 参数 | 类型 | 来源 | 说明 |
 |------|------|------|------|
@@ -32,24 +35,30 @@
 
 ---
 
-## Agent A（定性）→ Agent C
+## 定性参数（qualitative_report.md）→ Agent C
 
-| 参数 | 类型 | 来源维度 | 说明 |
-|------|------|---------|------|
-| capital_intensity | enum | 维度一 | capital-light / capital-hungry |
-| collection_mode | enum | 维度一 | 先款后货/订阅预收/先货后款/垫资回收 |
-| moat_type | string | 维度二 | "[非技术] xxx + [技术] xxx" |
-| moat_flywheel | bool | 维度二 | 是否构成复合护城河飞轮 |
-| moat_rating | enum | 维度二 | 优质/中性/负面 |
-| cyclicality | enum | 维度三 | 强周期/弱周期/非周期 |
-| cycle_position | enum | 维度三 | 底部/中段/顶部（仅强周期） |
-| management_rating | enum | 维度四 | 优秀/合格/损害价值/观察期 |
-| mda_credibility | enum | 维度五 | 高/中/低 |
-| mda_impact | enum | 维度五 | 正面/中性/负面 |
-| holding_structure | bool | 维度六 | 是否适用控股分析 |
-| sotp_discount_pct | float | 维度六 | 控股折价率（适用时） |
-| competitors | list | 维度三 | 主要竞争对手列表 [{name, ticker}] |
-| industry_keywords | list | 维度三 | 行业监控关键词 |
+| 参数 | 类型 | output_schema 来源 | 说明 |
+|------|------|-------------------|------|
+| capital_intensity | enum | D1 | capital-light / capital-hungry |
+| collection_mode | enum | D1 | 先款后货/订阅预收/先货后款/垫资回收 |
+| moat_type | string | D2.3 | "[非技术] xxx + [技术] xxx" |
+| moat_flywheel | bool | D2.3 | 是否构成复合护城河飞轮 |
+| moat_rating | enum | D2.6 | 通用值域：强/较强/中/弱（需映射，见下表） |
+| cyclicality | enum | D3 | 强周期/弱周期/非周期 |
+| cycle_position | enum | D3 | 底部/中段/顶部（仅强周期） |
+| management_rating | enum | D4 | 优秀/合格/损害价值/观察期 |
+| mda_credibility | enum | D5 | 高/中/低 |
+| mda_impact | enum | D5 | 正面/中性/负面 |
+| holding_structure | bool | D6 | 是否适用控股分析 |
+| sotp_discount_pct | float | D6 | 控股折价率（适用时） |
+| competitors | list | D2.5 | 主要竞争对手列表 [{name, ticker}] |
+| industry_keywords | list | D3 | 行业监控关键词 |
+
+### 值域映射（Agent C 负责执行）
+
+| output_schema 参数 | 通用模块值域 | 龟龟策略值域 | 映射规则 |
+|-------------------|------------|------------|---------|
+| moat_rating | 强 / 较强 / 中 / 弱 | 优质 / 中性 / 负面 | 强,较强→优质；中→中性；弱→负面 |
 
 ---
 
