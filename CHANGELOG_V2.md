@@ -1,7 +1,51 @@
 # Changelog — 龟龟投资策略 v2
 
-> 本文件记录 v1.1 → v2 的所有变更。当前版本：**v2_alpha**
-> v2 仍在开发中，龟龟策略的定量/估值模块尚需优化。
+> 本文件记录 v1.1 → v2 的所有变更。当前版本：**v2_beta**
+
+---
+
+## v2_beta (2026-04-05)
+
+### PDF-first 架构升级
+
+business-analysis 从 WebSearch-first 升级到 PDF-first 数据流：
+
+- 年报 PDF 作为主数据源，直接载入 1M context，Tushare 仅作历史序列补充
+- 单 Agent 模式取代 v2_alpha 的多 Agent 并行拆分（Agent A/B/C + Summary）。实测单 Agent 在交叉验证上更优，所有维度共享同一 context 消除信息孤岛
+- 新增 PDF 本地缓存检查：下载前先 glob `output/{code}_{company}/` 中已有 PDF，避免重复下载
+- 新增 `coordinator_v2.md` + `qualitative_assessment_v2.md`
+
+### Turtle 策略 Pre-flight 合并
+
+将独立的 `phase3_preflight.md`（数据校验+口径锚定）合并进 `phase3_quantitative.md` 的 Step 0：
+
+- Pipeline 从 3 个串行 Agent（Pre-flight → Agent B → Agent C）缩减为 2 个（Agent B 含 Step 0 → Agent C）
+- 每次分析预计节省 2-3 分钟（消除 1 次 Agent 启动 + 9 次文件读取 + 1 次文件写入）
+- `phase3_valuation.md` 不再依赖独立的 `phase3_preflight.md`，从 Agent B 输出读取基础信息
+- `phase3_preflight.md` 保留为文档参考，不再被 pipeline 调用
+
+### 新增独立估值模块
+
+- `/valuation` slash command：独立于龟龟策略的通用估值分析
+- `scripts/valuation_engine.py`：DCF / DDM / 可比估值 / Graham 四种方法
+- `strategies/valuation/`：coordinator + phase2_valuation + 参考文件（方法论/分类规则/模板/示例）
+
+### Tushare 模块增强
+
+- `assembly.py`：新增 §17 衍生指标预计算（Factor 2/3/4 加速）
+- `--refresh-market` 模式：仅刷新 §1/§2/§11/§14（增量更新，<5秒）
+- `financials.py` / `infrastructure.py`：minor fixes
+- `report_to_html.py`：支持 `--standalone` 内嵌 CSS 模式
+- `tests/test_refresh_market.py`：新增 refresh-market 测试覆盖
+
+### 实战验证
+
+完成两只标的的端到端全流程（business-analysis + turtle-analysis）：
+
+| 标的 | 结论 | 关键发现 |
+|------|------|---------|
+| 美的集团 (000333) | Observe 30% | Gross R 5.69% > 门槛，GG 3.53% < 门槛（SGA proxy 驱动的保守偏差），KUKA 商誉 34.3B 为潜在风险 |
+| 海尔智家 (600690) | Observe 50% | 股价低于地板价 7.4%，零价值陷阱信号，但毛利率连降 5ppt + AR 增速远超营收需警惕 |
 
 ---
 
@@ -111,19 +155,23 @@ Step 4: report_to_html.py → HTML 仪表盘
 
 ---
 
-## 待完成（v2_beta 路线图）
+## 待完成（v2_rc 路线图）
 
 ### 定性模块
-- [ ] Agent Team 端到端测试与调优
+- [x] ~~Agent Team 端到端测试与调优~~ → 改为单 Agent 模式（v2_beta）
 - [ ] D2 护城河分析的边界案例处理（如 platform 型企业的框架选择）
 - [ ] HTML 模板增加 bar chart（利润率趋势可视化）和 signal dots（风险信号矩阵）
 
 ### 龟龟策略（strategies/turtle/）
-- [ ] coordinator.md Agent A 调度改为引用 shared 定性模块（当前已引用但未测试完整 pipeline）
-- [ ] phase3_quantitative.md 穿透回报率计算优化
-- [ ] phase3_valuation.md 估值模块优化
-- [ ] phase3_preflight.md 与 shared 定性模块的口径对接
-- [ ] 端到端 `/turtle-analysis` 测试
+- [x] coordinator.md 调度改为引用 shared 定性模块（v2_beta 已完成）
+- [x] phase3_preflight 合并进 phase3_quantitative Step 0（v2_beta）
+- [x] 端到端 `/turtle-analysis` 测试 — 美的集团 + 海尔智家（v2_beta）
+- [ ] W2 员工支出 SGA proxy 偏差优化（当前驱动 HH 偏差过大）
+- [ ] Agent B + Agent C 进一步合并可行性评估
+
+### 估值模块（strategies/valuation/）
+- [x] 新增独立 `/valuation` 命令 + valuation_engine.py（v2_beta）
+- [ ] 端到端测试与调优
 
 ### 烟蒂策略（strategies/cigarbutt/）
 - [ ] 创建 cigarbutt coordinator + 策略专属 prompt
@@ -139,3 +187,4 @@ Step 4: report_to_html.py → HTML 仪表盘
 | v1.0 | — | 初始版本：6-phase pipeline, 4 factors |
 | v1.1 | — | 17 improvements across 9 files, shared_tables, HK/US support |
 | v2.0-alpha | 2026-03-31 | 模块化拆分 + Greenwald 护城河框架 + HTML 仪表盘 + Agent Team |
+| v2.0-beta | 2026-04-05 | PDF-first + 单Agent + Pre-flight合并 + 估值模块 + 实战验证 |
