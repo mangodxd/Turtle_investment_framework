@@ -443,7 +443,7 @@ class WarningsCollector:
     def __init__(self):
         self.warnings = []
 
-    def check_missing_data(self, section_name: str, df: pd.DataFrame):
+    def check_missing_data(self, section_name: str, df: pd.DataFrame) -> None:
         """Warn if a data section returned empty."""
         if df is None or (isinstance(df, pd.DataFrame) and df.empty):
             self.warnings.append({
@@ -454,7 +454,7 @@ class WarningsCollector:
 
     def check_yoy_change(self, section_name: str, field_name: str,
                          values: list, threshold: float = 3.0,
-                         dates: list = None):
+                         dates: list = None) -> None:
         """Warn if year-over-year change exceeds threshold (e.g., 300%)."""
         for i in range(len(values) - 1):
             curr, prev = values[i], values[i + 1]
@@ -474,7 +474,7 @@ class WarningsCollector:
                 except (ValueError, ZeroDivisionError):
                     pass
 
-    def check_audit_risk(self, audit_opinion: str):
+    def check_audit_risk(self, audit_opinion: str) -> None:
         """Warn if audit opinion is not clean."""
         if audit_opinion and audit_opinion not in ("标准无保留意见", "—", ""):
             self.warnings.append({
@@ -483,7 +483,7 @@ class WarningsCollector:
                 "message": f"审计意见非标准: {audit_opinion}",
             })
 
-    def check_goodwill_ratio(self, goodwill: float, total_assets: float):
+    def check_goodwill_ratio(self, goodwill: float, total_assets: float) -> None:
         """Warn if goodwill/total_assets > 20%."""
         if goodwill and total_assets and total_assets > 0:
             ratio = float(goodwill) / float(total_assets)
@@ -494,7 +494,7 @@ class WarningsCollector:
                     "message": f"商誉占总资产比例 {ratio*100:.1f}% 超过 20%",
                 })
 
-    def check_debt_ratio(self, total_liab: float, total_assets: float):
+    def check_debt_ratio(self, total_liab: float, total_assets: float) -> None:
         """Warn if debt ratio > 70%."""
         if total_liab and total_assets and total_assets > 0:
             ratio = float(total_liab) / float(total_assets)

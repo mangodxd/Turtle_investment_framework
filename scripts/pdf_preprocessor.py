@@ -30,6 +30,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import pdfplumber
+from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
@@ -657,7 +658,7 @@ def write_output(
 # Feature #42: Main pipeline
 # ---------------------------------------------------------------------------
 
-def parse_args(args=None):
+def parse_args(args: list=None):
     parser = argparse.ArgumentParser(
         description="Extract target sections from annual report PDFs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -791,7 +792,7 @@ def run_pipeline(pdf_path: str, output_path: str, verbose: bool = False,
     return result
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     if args.dry_run:

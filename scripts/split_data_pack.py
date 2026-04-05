@@ -92,7 +92,7 @@ def check_d6_trigger(sections: dict) -> dict:
     }
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Split data pack for agent team")
     parser.add_argument("--input", required=True, help="Path to data_pack_market.md")
     parser.add_argument("--output-dir", required=True, help="Output directory for splits")

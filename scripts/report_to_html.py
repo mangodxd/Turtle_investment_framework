@@ -343,7 +343,7 @@ def build_verdict(md_text: str) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Convert qualitative report MD to HTML dashboard")
     parser.add_argument("--input", required=True, help="Path to qualitative_report.md")
     parser.add_argument("--output", required=True, help="Output HTML path")

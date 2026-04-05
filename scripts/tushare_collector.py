@@ -225,7 +225,7 @@ Examples:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     # Validate and normalize stock code

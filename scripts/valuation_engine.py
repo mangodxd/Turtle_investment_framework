@@ -1088,7 +1088,7 @@ class ValuationEngine:
             rows.append(row)
         return format_table(headers, rows, alignments=["l"] + ["r"] * len(col_labels))
 
-    def generate_output(self, classification, wacc_data, method_results, xval, reverse) -> str:
+    def generate_output(self, classification, wacc_data, method_results, xval, reverse: bool) -> str:
         """Generate valuation_computed.md."""
         bi = self._basic_info()
         lines = []
@@ -1477,7 +1477,7 @@ class ValuationEngine:
 # CLI
 # ---------------------------------------------------------------------------
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Valuation computation engine")
     parser.add_argument("--code", required=True, help="Stock code (e.g., 600887)")
     parser.add_argument("--output-dir", required=True, help="Output directory")

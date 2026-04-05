@@ -51,7 +51,7 @@ URL_PATTERN = re.compile(
 )
 
 
-def get_headers(url):
+def get_headers(url: str):
     """Return headers with Referer matching the URL domain."""
     headers = dict(BASE_HEADERS)
     if "10jqka.com.cn" in url:
@@ -91,7 +91,7 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def validate_url(url):
+def validate_url(url: str) -> tuple:
     """Validate that the URL points to a supported source and ends with .pdf."""
     if not URL_PATTERN.match(url):
         return False, (
@@ -101,7 +101,7 @@ def validate_url(url):
     return True, ""
 
 
-def build_filename(stock_code, report_type, year):
+def build_filename(stock_code, report_type, year: int) -> str:
     """Build output filename: {code}_{year}_{report_type}.pdf
 
     Strips SH/SZ prefix from stock_code to match coordinator.md convention
@@ -120,7 +120,7 @@ def build_filename(stock_code, report_type, year):
     return f"{code}_{year}_{normalized}.pdf"
 
 
-def download_annual_report(url, save_path, max_retries=DEFAULT_MAX_RETRIES):
+def download_annual_report(url: str, save_path: str, max_retries: int=DEFAULT_MAX_RETRIES) -> tuple:
     """
     Download PDF with retry and validation.
 
@@ -205,8 +205,8 @@ def download_annual_report(url, save_path, max_retries=DEFAULT_MAX_RETRIES):
     return False, f"Download failed after {max_retries} attempts: {last_error}", 0
 
 
-def print_result(success, filepath="", filesize=0, url="", stock_code="",
-                 report_type="", year="", message=""):
+def print_result(success, filepath: str="", filesize: int=0, url: str="", stock_code: str="",
+                 report_type: str="", year: str="", message: str="") -> None:
     """Print structured result block for Claude to parse."""
     status = "SUCCESS" if success else "FAILED"
     print("\n---RESULT---")
@@ -221,7 +221,7 @@ def print_result(success, filepath="", filesize=0, url="", stock_code="",
     print("---END---")
 
 
-def main(argv=None):
+def main(argv=None) -> None:
     args = parse_args(argv)
 
     # Validate URL

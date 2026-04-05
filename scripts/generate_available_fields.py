@@ -36,7 +36,7 @@ def extract_fields_from_source(source_path: str) -> dict:
     return {ep: sorted(list(fields)) for ep, fields in sorted(endpoints.items())}
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Generate available_fields.json")
     parser.add_argument("--output", default="output/available_fields.json",
                         help="Output JSON path (default: output/available_fields.json)")
