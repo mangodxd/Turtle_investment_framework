@@ -99,7 +99,7 @@ class ScreenerCache:
         if not os.path.exists(path) or not os.path.exists(meta_path):
             return None
         try:
-            with open(meta_path) as f:
+            with open(meta_path, encoding="utf-8") as f:
                 ts = float(f.read().strip().split("\n")[0])
             if time.time() - ts > ttl_seconds:
                 return None
@@ -113,7 +113,7 @@ class ScreenerCache:
         meta_path = self._meta_path(key)
         try:
             df.to_parquet(path, index=False)
-            with open(meta_path, "w") as f:
+            with open(meta_path, "w", encoding="utf-8") as f:
                 f.write(f"{time.time()}\n{key}")
         except Exception:
             pass  # cache write failure is non-fatal
@@ -133,7 +133,7 @@ class ScreenerCache:
                 continue
             fp = os.path.join(self.cache_dir, f)
             try:
-                with open(fp) as fh:
+                with open(fp, encoding="utf-8") as fh:
                     lines = fh.read().strip().split("\n")
                 original_key = lines[1] if len(lines) > 1 else ""
                 if original_key.startswith(prefix):
