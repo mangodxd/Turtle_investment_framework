@@ -38,6 +38,11 @@ business-analysis 从 WebSearch-first 升级到 PDF-first 数据流：
 - `report_to_html.py`：支持 `--standalone` 内嵌 CSS 模式
 - `tests/test_refresh_market.py`：新增 refresh-market 测试覆盖
 
+### 测试
+
+- 新增 `test_refresh_market.py`：refresh-market 模式测试覆盖
+- 总测试数：792（v2_alpha 时为 769）
+
 ### 实战验证
 
 完成两只标的的端到端全流程（business-analysis + turtle-analysis）：
